@@ -1,0 +1,2 @@
+## Proyecto de Lenguajes de Programación
+Este proyecto consiste en la implementacion de un sistema de gestion de inventario desarrollado en python, utilizando tasks asincronas y una base de datos no relacional (MongoDB). El sistema permite realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) sobre los productos del inventario. Para frontend se utiliza HTML, CSS y JavaScript, con un enfoque en la simplicidad y la funcionalidad.
