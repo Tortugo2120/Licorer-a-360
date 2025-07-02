@@ -1,0 +1,1 @@
+# Inicializa la app Flask o FastAPI
