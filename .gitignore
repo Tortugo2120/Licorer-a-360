@@ -1,7 +1,7 @@
 # === FRONTEND (React) ===
 
 # dependencies
-inventario-frontend/node_modules/
+node_modules/
 .pnp/
 .pnp.js
 
@@ -37,7 +37,6 @@ env/
 *.sqlite3
 *.db
 *.log
-*.json
 
 # IDEs and editors
 .vscode/
