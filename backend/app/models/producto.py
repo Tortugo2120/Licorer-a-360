@@ -12,7 +12,7 @@ class Producto(SQLModel, table=True):
     
     id_categoria: Optional[int] = Field(default=None, foreign_key="categoria.id")
     
-    categoria: Optional["Categoria"] = Relationship(back_populates="producto")
+    categoria: Optional["Categoria"] = Relationship(back_populates="productos")
     
     variantes: list["Variante"] = Relationship(back_populates="producto")
     
