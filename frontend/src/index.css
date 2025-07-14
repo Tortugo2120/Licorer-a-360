@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  margin: 0;
+  padding: 0;
+  box-sizing: content-box;
+}
+
+ body {
+      font-family: 'Poppins', sans-serif;
+ }
+
+ .sidebar-icon {
+      @apply relative flex items-center justify-center h-12 w-12 mt-2 mb-2 mx-auto shadow-lg bg-gray-800 text-purple-400 hover:bg-purple-600 hover:text-white rounded-xl hover:rounded-xl transition-all duration-300 ease-linear;
+ }
+
+ .sidebar-tooltip {
+      @apply absolute w-auto p-2 m-2 min-w-max left-14 rounded-md shadow-md text-white bg-gray-900 text-xs font-bold transition-all duration-100 scale-0 origin-left;
+ }
+
+ .sidebar-hr {
+      @apply bg-gray-600 border border-gray-600 rounded-full mx-2;
+ }
+
+ .top-navigation {
+      @apply flex flex-row items-center justify-evenly bg-gray-800 w-full h-16 m-0 shadow-lg;
+ }
+
+ .search {
+      @apply w-full py-2 px-4 bg-gray-700 rounded-lg text-white placeholder-gray-400 outline-none;
+ }
+
+ .stock-level-high {
+      @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+ }
+
+ .stock-level-medium {
+      @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300;
+ }
+
+ .stock-level-low {
+      @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300;
+ }
+
+ .modal {
+      transition: opacity 0.25s ease;
+ }
+
+ /* Table Styles */
+ .product-table th {
+      @apply px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-400 uppercase;
+ }
+
+ .product-table td {
+      @apply px-6 py-4 whitespace-nowrap text-sm text-gray-300;
+ }
+
+ /* Tab Styles */
+ .tab-active {
+      @apply text-purple-500 border-b-2 border-purple-500 dark:text-purple-400;
+ }
+
+ .tab-inactive {
+      @apply border-b-2 border-transparent hover:text-gray-400 dark:hover:text-gray-300;
+ }
