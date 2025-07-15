@@ -7,6 +7,7 @@ import Reports from './components/Reports';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import Shop from './components/Shop';
+import Productos2 from './components/Productos2';
 import { useState } from 'react';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
                     <Route path="/" element={<Navigate to="/shop" replace />} />
                     <Route path="/shop" element={<Shop uploadedFiles={uploadedFiles} />} />
                     <Route path="/dashboard" element={<Dashboard uploadedFiles={uploadedFiles} />} />
+                    <Route path="/productos2" element={<Productos2 uploadedFiles={uploadedFiles}/>} />
                     <Route path="/products" element={<Products uploadedFiles={uploadedFiles} />} />
                     <Route path="/reports" element={<Reports uploadedFiles={uploadedFiles} />} />
                     <Route path="/settings" element={<Settings uploadedFiles={uploadedFiles} />} />

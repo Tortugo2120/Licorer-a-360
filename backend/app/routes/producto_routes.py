@@ -1,20 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models.producto import Producto
+from app.models.schemas import ProductoRead
 from app.database import get_session
 
 router = APIRouter()
 
-@router.get("/productos")
+@router.get("/productos", response_model=list[ProductoRead])
 def get_productos(session: Session = Depends(get_session)):
-    productos = session.query(Producto).all()
+    productos = session.exec(select(Producto)).all()
     return productos
 
 @router.post("/productos")
 def add_producto(producto: Producto, session: Session = Depends(get_session)):
     session.add(producto)
     session.commit()
-    session.refresh(producto)  # para obtener el ID generado
+    session.refresh(producto)
     return producto
 
 @router.get("/productos/{producto_id}")

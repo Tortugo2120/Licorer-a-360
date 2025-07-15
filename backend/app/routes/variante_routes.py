@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.models.variante import Variante
+from app.models.schemas import VarianteRead
 from app.database import get_session
 
 router = APIRouter()
 
-@router.get("/variantes")
-def get_variante(session: Session = Depends(get_session)):
-    variantes = session.query(Variante).all()
+@router.get("/variantes", response_model=list[VarianteRead])
+def get_variantes(session: Session = Depends(get_session)):
+    variantes = session.exec(select(Variante)).all()
     return variantes
 
 @router.post("/variantes")
