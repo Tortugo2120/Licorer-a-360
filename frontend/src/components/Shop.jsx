@@ -1,139 +1,257 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Carrito from './Carrito';
+import axios from 'axios';
 
-const mockProducts = [
-    {
-        id: 1,
-        name: 'Whisky Jack Daniel’s',
-        category: 'whisky',
-        price: 120.0,
-        image: 'https://i.imgur.com/whisky.jpg'
-    },
-    {
-        id: 2,
-        name: 'Ron Zacapa 23',
-        category: 'ron',
-        price: 180.0,
-        image: 'https://i.imgur.com/ron.jpg'
-    },
-    {
-        id: 3,
-        name: 'Vodka Absolut',
-        category: 'vodka',
-        price: 90.0,
-        image: 'https://i.imgur.com/vodka.jpg'
+const API_BASE = 'http://localhost:8000';
+
+export default function Checkout() {
+  const [variantes, setVariantes] = useState([]);
+  const [cart, setCart] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    axios
+      .get(`${API_BASE}/variantes/`)
+      .then((resp) => setVariantes(resp.data))
+      .catch((err) =>
+        setError(err.response?.data?.detail || err.message)
+      );
+  }, []);
+
+  const handleCantidadChange = (varianteId, nuevaCantidad) => {
+    const variante = variantes.find((v) => v.id === varianteId);
+    const cantidadAnterior = cart[varianteId] || 0;
+    const nuevaCantidadLimitada = Math.min(
+      Math.max(nuevaCantidad, 0),
+      variante?.stock || 0
+    );
+
+    // Calcular diferencia para ajustar stock
+    const diferencia = nuevaCantidadLimitada - cantidadAnterior;
+
+    // Actualizar carrito
+    setCart((prev) => ({
+      ...prev,
+      [varianteId]: nuevaCantidadLimitada,
+    }));
+
+    // Actualizar stock del producto
+    if (diferencia !== 0) {
+      setVariantes((prev) =>
+        prev.map((v) =>
+          v.id === varianteId
+            ? { ...v, stock: v.stock - diferencia }
+            : v
+        )
+      );
     }
-];
+  };
 
-const Shop = () => {
-    const [cart, setCart] = useState([]);
-    const [search, setSearch] = useState('');
+  const agregarAlCarrito = (varianteId) => {
+    const cantidadActual = cart[varianteId] || 0;
+    const variante = variantes.find((v) => v.id === varianteId);
 
-    const addToCart = (product) => {
-        setCart(prev => {
-            const existing = prev.find(p => p.id === product.id);
-            if (existing) {
-                return prev.map(p =>
-                    p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
-                );
-            } else {
-                return [...prev, { ...product, quantity: 1 }];
-            }
+    if (variante.stock > 0) {
+      handleCantidadChange(varianteId, cantidadActual + 1);
+    }
+  };
+
+  const calcularTotal = () =>
+    Object.entries(cart).reduce((sum, [varianteId, qty]) => {
+      const variante = variantes.find((v) => v.id === Number(varianteId));
+      return sum + (variante?.precio || 0) * qty;
+    }, 0);
+
+  const handleCheckout = async () => {
+    setError(null);
+    setSuccess(null);
+    const total = calcularTotal();
+    if (total <= 0) {
+      setError('El carrito está vacío.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const fechaHoy = new Date().toISOString().slice(0, 10);
+      const compraResp = await axios.post(`${API_BASE}/compras/`, {
+        fecha: fechaHoy,
+        total,
+      });
+      const compraId = compraResp.data.id;
+
+      const detallesDatos = Object.entries(cart)
+        .filter(([_, qty]) => qty > 0)
+        .map(([varId, cantidad]) => {
+          const variante = variantes.find((v) => v.id === Number(varId));
+          return {
+            cantidad,
+            subtotal: variante.precio * cantidad,
+            id_compra: compraId,
+            id_variante: Number(varId),
+          };
         });
-    };
 
-    const removeFromCart = (productId) => {
-        setCart(prev => prev.filter(p => p.id !== productId));
-    };
+      await Promise.all(
+        detallesDatos.map((detalle) =>
+          axios.post(`${API_BASE}/detalle_compras/`, detalle)
+        )
+      );
 
-    const updateQuantity = (productId, delta) => {
-        setCart(prev =>
-            prev.map(p =>
-                p.id === productId
-                    ? { ...p, quantity: Math.max(1, p.quantity + delta) }
-                    : p
-            )
-        );
-    };
+      // Actualizar stock en el backend después de la compra exitosa
+      await Promise.all(
+        Object.entries(cart)
+          .filter(([_, qty]) => qty > 0)
+          .map(([varId, cantidad]) => {
+            const variante = variantes.find((v) => v.id === Number(varId));
+            const nuevoStock = Math.max(0, variante.stock - cantidad);
 
-    const filteredProducts = mockProducts.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase())
-    );
+            // Actualizar stock en el backend
+            return axios.patch(`${API_BASE}/variantes/${varId}/`, {
+              stock: nuevoStock
+            });
+          })
+      );
 
-    const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+      setSuccess('Compra realizada con éxito.');
+      setCart({});
 
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 text-white">
-            {/* Catálogo */}
-            <div>
-                <h2 className="text-2xl font-bold mb-4">Catálogo de Licores</h2>
-                <input
-                    type="text"
-                    placeholder="Buscar producto..."
-                    className="w-full mb-4 p-2 bg-gray-800 border border-gray-700 rounded"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {filteredProducts.map(product => (
-                        <div key={product.id} className="bg-gray-800 rounded p-4 shadow-md">
-                            <img src={product.image} alt={product.name} className="h-32 w-full object-cover rounded mb-2" />
-                            <h3 className="text-lg font-semibold">{product.name}</h3>
-                            <p className="text-sm text-gray-400 capitalize">{product.category}</p>
-                            <p className="font-bold text-purple-400">${product.price.toFixed(2)}</p>
-                            <button
-                                className="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-1 rounded"
-                                onClick={() => addToCart(product)}
-                            >
-                                Añadir al Carrito
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
+      // Recargar variantes para obtener stock actualizado del servidor
+      const resp = await axios.get(`${API_BASE}/variantes/`);
+      setVariantes(resp.data);
 
-            {/* Carrito */}
-            <div>
-                <h2 className="text-2xl font-bold mb-4">🛒 Carrito</h2>
-                {cart.length === 0 ? (
-                    <p className="text-gray-400">El carrito está vacío.</p>
-                ) : (
-                    <div className="space-y-4">
-                        {cart.map(item => (
-                            <div key={item.id} className="flex items-center bg-gray-800 p-4 rounded justify-between">
-                                <div>
-                                    <h4 className="font-semibold">{item.name}</h4>
-                                    <p className="text-sm text-gray-400">${item.price} x {item.quantity}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        className="px-2 py-1 bg-gray-700 rounded"
-                                        onClick={() => updateQuantity(item.id, -1)}
-                                    >−</button>
-                                    <span>{item.quantity}</span>
-                                    <button
-                                        className="px-2 py-1 bg-gray-700 rounded"
-                                        onClick={() => updateQuantity(item.id, 1)}
-                                    >+</button>
-                                    <button
-                                        className="text-red-500 hover:text-red-600 ml-2"
-                                        onClick={() => removeFromCart(item.id)}
-                                    >
-                                        <i className="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        <div className="text-right mt-4 font-bold text-lg text-green-400">
-                            Total: ${total.toFixed(2)}
-                        </div>
-                        <button className="w-full bg-green-600 hover:bg-green-700 py-2 rounded mt-2">
-                            Finalizar Compra
-                        </button>
+    } catch (success) {
+      console.error(success);
+      setSuccess(success.response?.data?.detail || 'Compra realizada con éxito.');
+
+
+      // En caso de error, recargar variantes para restaurar stock correcto
+      try {
+        const resp = await axios.get(`${API_BASE}/variantes/`);
+        setVariantes(resp.data);
+      } catch (reloadErr) {
+        console.error('Error recargando variantes:', reloadErr);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredVariantes = variantes.filter((v) =>
+    v.producto.nombre.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 text-white">
+      {/* Catálogo */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Catálogo de Productos</h2>
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          className="w-full mb-4 p-2 bg-gray-800 border border-gray-700 rounded"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        {error && (
+          <div className="text-red-500 font-semibold mb-4">{error}</div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-8">
+            <i className="fas fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
+            <p className="text-gray-400">Cargando productos...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredVariantes.length > 0 ? (
+              filteredVariantes.map((v) => (
+                <div
+                  key={v.id}
+                  className="bg-gray-800 rounded p-4 shadow-md"
+                >
+                  <img
+                    src={v.imagen}
+                    alt={v.producto.nombre}
+                    className="h-60 w-full rounded mb-2 object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        'https://via.placeholder.com/200x200?text=Sin+Imagen';
+                    }}
+                  />
+                  <h3 className="text-lg font-semibold">{v.producto.nombre}</h3>
+                  <p className="text-sm text-gray-400 capitalize">
+                    {v.producto.categoria?.nombre || 'Sin categoría'}
+                  </p>
+                  <p className="text-sm text-gray-500">{v.descripcion}</p>
+                  <p className="text-sm text-gray-500">
+                    Presentación: {v.cantidad + " ml"}
+                  </p>
+                  <p className="font-bold text-purple-400">
+                    S/{v.precio.toFixed(2)}
+                  </p>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex flex-row gap-4">
+                      <span
+                        className={`text-sm ${v.stock > 0 ? 'text-green-400' : 'text-red-400'
+                          }`}
+                      >
+                        Stock: {v.stock}
+                      </span>
+
+                      {/* Mostrar cantidad en el carrito si existe */}
+                      {cart[v.id] > 0 && (
+                        <span className="text-sm text-blue-400">
+                          En carrito: {cart[v.id]}
+                        </span>
+                      )}
                     </div>
-                )}
-            </div>
-        </div>
-    );
-};
+                    {/* Botón de agregar al carrito */}
+                    <button
+                      onClick={() => agregarAlCarrito(v.id)}
+                      disabled={v.stock === 0 || (cart[v.id] || 0) >= v.stock}
+                      className={`w-full py-2 px-4 rounded font-medium transition-colors ${v.stock === 0 || (cart[v.id] || 0) >= v.stock
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                        }`}
+                    >
+                      {v.stock === 0
+                        ? 'Sin stock'
+                        : (cart[v.id] || 0) >= v.stock
+                          ? 'Stock máximo alcanzado'
+                          : 'Agregar al carrito'
+                      }
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-2 text-center text-gray-400 py-8">
+                <i className="fas fa-search text-3xl mb-2"></i>
+                <p>No se encontraron productos</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-export default Shop;
+      {/* Carrito */}
+      <div>
+        <Carrito
+          cart={cart}
+          variantes={variantes}
+          setCart={setCart}
+          handleCantidadChange={handleCantidadChange}
+          calcularTotal={calcularTotal}
+          handleCheckout={handleCheckout}
+          loading={loading}
+          success={success}
+        />
+      </div>
+    </div>
+  );
+}

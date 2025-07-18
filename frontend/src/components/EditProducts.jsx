@@ -1,189 +1,100 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const EditProducts = ({ isOpen, onClose, onEditProduct, product }) => {
+const EditVariantes = ({ isOpen, onClose, onEditVariante, product }) => {
     const [formData, setFormData] = useState({
-        name: '',
+        nombre: '',
         category: '',
-        sku: '',
         price: '',
         quantity: '',
-        supplier: '',
-        image: null,
-        description: ''
+        stock: '',
+        image: '',
+        description: '',
     });
-
     const [errors, setErrors] = useState({});
-    const [previewImage, setPreviewImage] = useState(null);
+    const [previewImage, setPreviewImage] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const categories = [
-        { value: '', label: 'Seleccionar categoría' },
-        { value: 'wine', label: 'Vinos' },
-        { value: 'whisky', label: 'Whisky' },
-        { value: 'vodka', label: 'Vodka' },
-        { value: 'rum', label: 'Ron' },
-        { value: 'tequila', label: 'Tequila' }
-    ];
-
-    const suppliers = [
-        { value: '', label: 'Seleccionar proveedor' },
-        { value: 'supplier1', label: 'Global Spirits' },
-        { value: 'supplier2', label: 'Premium Drinks' },
-        { value: 'supplier3', label: 'Liquor Imports' }
-    ];
-
-    // Cargar datos del producto cuando se abre el modal
     useEffect(() => {
-        if (isOpen && product) {
-            setFormData({
-                name: product.name || '',
-                category: product.category || '',
-                sku: product.sku || '',
-                price: product.price || '',
-                quantity: product.quantity || '',
-                supplier: product.supplier || '',
-                image: product.image || null,
-                description: product.description || ''
-            });
-            setPreviewImage(product.image);
-            setErrors({});
-        }
+        if (!isOpen || !product) return;
+
+        setFormData({
+            nombre: product.producto?.nombre || '',
+            category: product.producto?.categoria?.nombre || '',
+            price: product.precio?.toString() || '',
+            quantity: product.cantidad?.toString() || '',
+            stock: product.stock?.toString() || '',
+            image: product.imagen || '',
+            description: product.producto?.descripcion || product.descripcion || '',
+        });
+        setPreviewImage(product.imagen || '');
+        setErrors({});
     }, [isOpen, product]);
 
-    const handleInputChange = (e) => {
+    const handleChange = e => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-
-        // Limpiar error específico cuando el usuario empieza a escribir
-        if (errors[name]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: ''
-            }));
-        }
+        setFormData(prev => ({ ...prev, [name]: value }));
+        setErrors(prev => ({ ...prev, [name]: '' }));
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            // Validar tipo de archivo
-            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-            if (!validTypes.includes(file.type)) {
-                setErrors(prev => ({
-                    ...prev,
-                    image: 'Solo se permiten archivos JPG, PNG o WebP'
-                }));
-                return;
-            }
-
-            // Validar tamaño (máximo 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                setErrors(prev => ({
-                    ...prev,
-                    image: 'El archivo no puede ser mayor a 5MB'
-                }));
-                return;
-            }
-
-            // Crear preview
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setPreviewImage(e.target.result);
-            };
-            reader.readAsDataURL(file);
-
-            setFormData(prev => ({
-                ...prev,
-                image: file
-            }));
-
-            // Limpiar error de imagen
-            setErrors(prev => ({
-                ...prev,
-                image: ''
-            }));
-        }
+    const handleImageURLChange = e => {
+        setFormData(prev => ({ ...prev, image: e.target.value }));
+        setPreviewImage(e.target.value);
     };
 
     const removeImage = () => {
-        setFormData(prev => ({
-            ...prev,
-            image: null
-        }));
-        setPreviewImage(null);
-        // Limpiar input de archivo
-        const fileInput = document.getElementById('edit-product-image');
-        if (fileInput) {
-            fileInput.value = '';
-        }
+        setFormData(prev => ({ ...prev, image: '' }));
+        setPreviewImage('');
     };
 
-    const validateForm = () => {
-        const newErrors = {};
-
-        if (!formData.name.trim()) {
-            newErrors.name = 'El nombre del producto es requerido';
-        }
-
-        if (!formData.category) {
-            newErrors.category = 'La categoría es requerida';
-        }
-
-        if (!formData.sku.trim()) {
-            newErrors.sku = 'El SKU es requerido';
-        }
-
-        if (!formData.price || parseFloat(formData.price) <= 0) {
-            newErrors.price = 'El precio debe ser mayor a 0';
-        }
-
-        if (!formData.quantity || parseInt(formData.quantity) < 0) {
-            newErrors.quantity = 'La cantidad no puede ser negativa';
-        }
-
-        if (!formData.supplier) {
-            newErrors.supplier = 'El proveedor es requerido';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+    const validate = () => {
+        const errs = {};
+        if (!formData.price || isNaN(formData.price) || +formData.price <= 0) errs.price = 'Precio inválido';
+        if (!formData.quantity || isNaN(formData.quantity) || +formData.quantity < 0) errs.quantity = 'Cantidad inválida';
+        if (!formData.stock || isNaN(formData.stock) || +formData.stock < 0) errs.stock = 'Stock inválido';
+        setErrors(errs);
+        return Object.keys(errs).length === 0;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async e => {
         e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
-
-        const updatedProduct = {
-            ...product,
-            ...formData,
-            price: parseFloat(formData.price),
-            quantity: parseInt(formData.quantity),
-            updatedAt: new Date().toISOString()
-        };
-
-        onEditProduct(updatedProduct);
-        onClose();
-    };
-
-    const handleClose = () => {
-        setFormData({
-            name: '',
-            category: '',
-            sku: '',
-            price: '',
-            quantity: '',
-            supplier: '',
-            image: null,
-            description: ''
-        });
-        setPreviewImage(null);
+        if (!validate()) return;
+        setLoading(true);
         setErrors({});
-        onClose();
+
+        try {
+            const productoId = product.producto?.id || product.producto_id || product.id;
+
+            const payload = {
+                id: product.id,
+                imagen: formData.image.trim() || null,
+                precio: parseFloat(formData.price),
+                cantidad: parseInt(formData.quantity, 10),
+                stock: parseInt(formData.stock, 10),
+                producto_id: productoId,
+            };
+
+            const res = await axios.put(
+                `http://localhost:8000/variantes/${product.id}`,
+                payload,
+                { headers: { 'Content-Type': 'application/json' } }
+            );
+
+            if (typeof onEditVariante === 'function') {
+                onEditVariante(res.data); // Aquí se actualiza el padre
+
+            }
+
+            onClose();
+            // al final de tu handleSubmit, tras onClose():
+            window.location.reload();
+
+        } catch (err) {
+            console.error('Error al guardar:', err);
+            setErrors({ submit: err.response?.data?.detail || err.message });
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -191,215 +102,104 @@ const EditProducts = ({ isOpen, onClose, onEditProduct, product }) => {
     return (
         <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-gray-700">
                     <h2 className="text-xl font-bold text-white">
-                        <i className="fas fa-edit mr-2"></i>
-                        Editar Producto
+                        <i className="fas fa-edit mr-2"></i> Editar: {formData.nombre}
                     </h2>
-                    <button
-                        onClick={handleClose}
-                        className="text-gray-400 hover:text-white transition-colors"
-                    >
+                    <div className="text-sm text-gray-300"> Categoria: {formData.category}</div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white">
                         <i className="fas fa-times text-xl"></i>
                     </button>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {/* Nombre del producto */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">
-                            Nombre del producto *
-                        </label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            placeholder="Ej: Vino Tinto Reserva"
-                            className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.name ? 'border-red-500' : 'border-gray-600'
-                                }`}
-                        />
-                        {errors.name && (
-                            <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                        )}
-                    </div>
-
-                    {/* Categoría y SKU */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                Categoría *
-                            </label>
-                            <select
-                                name="category"
-                                value={formData.category}
-                                onChange={handleInputChange}
-                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.category ? 'border-red-500' : 'border-gray-600'
-                                    }`}
-                            >
-                                {categories.map(cat => (
-                                    <option key={cat.value} value={cat.value}>
-                                        {cat.label}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.category && (
-                                <p className="text-red-500 text-xs mt-1">{errors.category}</p>
-                            )}
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                SKU *
-                            </label>
-                            <input
-                                type="text"
-                                name="sku"
-                                value={formData.sku}
-                                onChange={handleInputChange}
-                                placeholder="Ej: VTR-001"
-                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.sku ? 'border-red-500' : 'border-gray-600'
-                                    }`}
-                            />
-                            {errors.sku && (
-                                <p className="text-red-500 text-xs mt-1">{errors.sku}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Precio y Cantidad */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                Precio ($) *
-                            </label>
+                            <label className="text-sm text-gray-400">Precio *</label>
                             <input
                                 type="number"
                                 name="price"
                                 value={formData.price}
-                                onChange={handleInputChange}
+                                onChange={handleChange}
                                 step="0.01"
-                                min="0"
-                                placeholder="0.00"
-                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.price ? 'border-red-500' : 'border-gray-600'
-                                    }`}
+                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white ${errors.price ? 'border-red-500' : 'border-gray-600'}`}
                             />
-                            {errors.price && (
-                                <p className="text-red-500 text-xs mt-1">{errors.price}</p>
-                            )}
+                            {errors.price && <p className="text-red-500 text-xs">{errors.price}</p>}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                Cantidad en stock *
-                            </label>
+                            <label className="text-sm text-gray-400">Cantidad (ml)*</label>
                             <input
                                 type="number"
                                 name="quantity"
                                 value={formData.quantity}
-                                onChange={handleInputChange}
-                                min="0"
-                                placeholder="0"
-                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.quantity ? 'border-red-500' : 'border-gray-600'
-                                    }`}
+                                onChange={handleChange}
+                                className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white ${errors.quantity ? 'border-red-500' : 'border-gray-600'}`}
                             />
-                            {errors.quantity && (
-                                <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
-                            )}
+                            {errors.quantity && <p className="text-red-500 text-xs">{errors.quantity}</p>}
                         </div>
                     </div>
 
-                    {/* Proveedor */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">
-                            Proveedor *
-                        </label>
-                        <select
-                            name="supplier"
-                            value={formData.supplier}
-                            onChange={handleInputChange}
-                            className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 ${errors.supplier ? 'border-red-500' : 'border-gray-600'
-                                }`}
-                        >
-                            {suppliers.map(supplier => (
-                                <option key={supplier.value} value={supplier.value}>
-                                    {supplier.label}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.supplier && (
-                            <p className="text-red-500 text-xs mt-1">{errors.supplier}</p>
+                        <label className="text-sm text-gray-400">Stock *</label>
+                        <input
+                            type="number"
+                            name="stock"
+                            value={formData.stock}
+                            onChange={handleChange}
+                            className={`w-full bg-gray-700 border rounded-lg py-2 px-3 text-white ${errors.stock ? 'border-red-500' : 'border-gray-600'}`}
+                        />
+                        {errors.stock && <p className="text-red-500 text-xs">{errors.stock}</p>}
+                    </div>
+
+                    <div>
+                        <label className="text-sm text-gray-400">URL de la imagen</label>
+                        <input
+                            type="text"
+                            name="image"
+                            value={formData.image}
+                            onChange={handleImageURLChange}
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white"
+                        />
+                        {previewImage && (
+                            <div className="mt-2 relative w-32 h-32">
+                                <img src={previewImage} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                                <button
+                                    type="button"
+                                    onClick={removeImage}
+                                    className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         )}
                     </div>
 
-                    {/* Imagen del producto */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">
-                            Imagen del producto
-                        </label>
-                        <div className="space-y-2">
-                            <input
-                                type="file"
-                                id="edit-product-image"
-                                accept="image/*"
-                                onChange={handleImageChange}
-                                className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-medium file:bg-purple-600 file:text-white hover:file:bg-purple-700"
-                            />
-                            {errors.image && (
-                                <p className="text-red-500 text-xs">{errors.image}</p>
-                            )}
-
-                            {previewImage && (
-                                <div className="relative inline-block">
-                                    <img
-                                        src={previewImage}
-                                        alt="Vista previa"
-                                        className="w-32 h-32 object-cover rounded-lg border border-gray-600"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={removeImage}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                                    >
-                                        <i className="fas fa-times text-xs"></i>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Descripción */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">
-                            Descripción (opcional)
-                        </label>
+                        <label className="text-sm text-gray-400">Descripción</label>
                         <textarea
                             name="description"
                             value={formData.description}
-                            onChange={handleInputChange}
-                            placeholder="Descripción del producto..."
+                            onChange={handleChange}
                             rows="3"
-                            className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 resize-none"
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white resize-none"
                         />
                     </div>
 
-                    {/* Botones */}
+                    {errors.submit && (
+                        <div className="text-red-500 text-sm">{errors.submit}</div>
+                    )}
+
                     <div className="flex justify-end space-x-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                        >
+                        <button type="button" onClick={onClose} className="text-gray-400 hover:text-white">
                             Cancelar
                         </button>
                         <button
                             type="submit"
-                            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+                            disabled={loading}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg"
                         >
-                            <i className="fas fa-save mr-2"></i>
-                            Guardar Cambios
+                            <i className="fas fa-save mr-2"></i> {loading ? 'Guardando...' : 'Guardar Cambios'}
                         </button>
                     </div>
                 </form>
@@ -408,4 +208,4 @@ const EditProducts = ({ isOpen, onClose, onEditProduct, product }) => {
     );
 };
 
-export default EditProducts;
+export default EditVariantes;

@@ -1,13 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import EditProducts from "./EditProducts.jsx";
+import { useNavigate } from 'react-router-dom';
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  LineController,
+  DoughnutController
+} from 'chart.js';
+
+// Registrar todos los componentes necesarios de Chart.js
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  LineController,
+  DoughnutController
+);
+
+const API_BASE = 'http://localhost:8000';
 
 // Componente EditProductModal
 const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    name: product?.name || '',
-    category: product?.category || '',
-    stock: product?.stock || 0,
-    price: product?.price || 0
+    nombre: '',
+    categoria: '',
+    stock: 0,
+    precio: 0,
+    descripcion: ''
   });
+
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        nombre: product.producto?.nombre || '',
+        categoria: product.producto?.categoria?.nombre || '',
+        stock: product.stock || 0,
+        precio: product.precio || 0,
+        descripcion: product.producto?.descripcion || ''
+      });
+    }
+  }, [product]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -17,158 +67,357 @@ const EditProductModal = ({ product, isOpen, onClose, onSave }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave({ ...product, ...formData });
-    onClose();
+    try {
+      // Actualizar variante
+      await axios.put(`${API_BASE}/variantes/${product.id}`, {
+        stock: parseInt(formData.stock),
+        precio: parseFloat(formData.precio),
+        imagen: product.imagen,
+        cantidad: product.cantidad
+      });
+
+      // Actualizar producto
+      await axios.put(`${API_BASE}/productos/${product.producto.id}`, {
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        categoria: {
+          id: product.producto.categoria.id,
+          nombre: formData.categoria
+        }
+      });
+
+      await onSave();
+      onClose();
+    } catch (error) {
+      console.error('Error al actualizar producto:', error);
+    }
   };
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-white">Editar Producto</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <i className="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <div onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nombre del Producto
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Categoría
-            </label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="Ron">Ron</option>
-              <option value="Whisky">Whisky</option>
-              <option value="Tequila">Tequila</option>
-              <option value="Vodka">Vodka</option>
-              <option value="Gin">Gin</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Stock
-            </label>
-            <input
-              type="number"
-              name="stock"
-              value={formData.stock}
-              onChange={handleInputChange}
-              min="0"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Precio ($)
-            </label>
-            <input
-              type="number"
-              name="price"
-              value={formData.price}
-              onChange={handleInputChange}
-              step="0.01"
-              min="0"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-              required
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-            >
-              Guardar Cambios
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const Dashboard = () => {
-  // Datos de ejemplo para las cards
-  const [dashboardData] = useState({
-    totalProducts: 132,
-    productGrowth: 12,
-    recentSales: 9840,
-    salesGrowth: 8,
-    lowStockProducts: 23,
-    lowStockIncrease: 5
-  });
+  // Estados para datos de la API
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [compras, setCompras] = useState([]);
+  const [detallesCompras, setDetallesCompras] = useState([]);
+  const [variantes, setVariantes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const navigate = useNavigate();
 
-  // Datos de ejemplo para la tabla
-  const [lowStockProducts, setLowStockProducts] = useState([
-    {
-      id: 1,
-      name: "Ron Añejo Premium",
-      category: "Ron",
-      stock: 3,
-      price: 42.99,
-      icon: "fas fa-wine-bottle",
-      stockLevel: "low"
-    },
-    {
-      id: 2,
-      name: "Whisky Escocés 12 años",
-      category: "Whisky",
-      stock: 5,
-      price: 56.99,
-      icon: "fas fa-wine-glass-alt",
-      stockLevel: "low"
-    },
-    {
-      id: 3,
-      name: "Tequila Reposado",
-      category: "Tequila",
-      stock: 12,
-      price: 35.99,
-      icon: "fas fa-wine-bottle",
-      stockLevel: "medium"
-    }
-  ]);
+  // Estados para el dashboard
+  const [dashboardData, setDashboardData] = useState({
+    totalProducts: 0,
+    productGrowth: 0,
+    recentSales: 0,
+    salesGrowth: 0,
+    lowStockProducts: 0,
+    lowStockIncrease: 0
+  });
 
   // Estados para el modal
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+
+  // Referencias para los gráficos
+  const salesChartRef = useRef(null);
+  const categoryChartRef = useRef(null);
+  const chartInstancesRef = useRef({});
+
+  // Obtener fechas por defecto (últimos 30 días para comparación)
+  const obtenerFechasComparacion = () => {
+    const hoy = new Date();
+    const hace30Dias = new Date(hoy);
+    hace30Dias.setDate(hoy.getDate() - 30);
+    const hace60Dias = new Date(hoy);
+    hace60Dias.setDate(hoy.getDate() - 60);
+
+    return {
+      actual: {
+        fin: hoy.toISOString().slice(0, 10),
+        inicio: hace30Dias.toISOString().slice(0, 10)
+      },
+      anterior: {
+        fin: hace30Dias.toISOString().slice(0, 10),
+        inicio: hace60Dias.toISOString().slice(0, 10)
+      }
+    };
+  };
+
+  useEffect(() => {
+    cargarDatos();
+
+    // Cleanup function para destruir gráficos
+    return () => {
+      if (chartInstancesRef.current.salesChart) {
+        chartInstancesRef.current.salesChart.destroy();
+      }
+      if (chartInstancesRef.current.categoryChart) {
+        chartInstancesRef.current.categoryChart.destroy();
+      }
+    };
+  }, []);
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Cargar todos los datos necesarios
+      const [comprasResp, detallesResp, variantesResp, productosResp] = await Promise.all([
+        axios.get(`${API_BASE}/compras/`),
+        axios.get(`${API_BASE}/detalle_compras/`),
+        axios.get(`${API_BASE}/variantes/`),
+        axios.get(`${API_BASE}/productos/`)
+      ]);
+
+      setCompras(comprasResp.data);
+      setDetallesCompras(detallesResp.data);
+      setVariantes(variantesResp.data);
+      setProductos(productosResp.data);
+
+      // Procesar datos para el dashboard
+      procesarDatosDashboard(comprasResp.data, detallesResp.data, variantesResp.data, productosResp.data);
+
+      // Inicializar gráficos después de procesar datos
+      setTimeout(() => {
+        initCharts(comprasResp.data, detallesResp.data, variantesResp.data);
+      }, 100);
+
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error cargando datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const procesarDatosDashboard = (compras, detalles, variantes, productos) => {
+    const fechas = obtenerFechasComparacion();
+
+    // Filtrar compras por períodos
+    const comprasActuales = compras.filter(compra => {
+      const fechaCompra = new Date(compra.fecha);
+      const inicio = new Date(fechas.actual.inicio);
+      const fin = new Date(fechas.actual.fin);
+      return fechaCompra >= inicio && fechaCompra <= fin;
+    });
+
+    const comprasAnteriores = compras.filter(compra => {
+      const fechaCompra = new Date(compra.fecha);
+      const inicio = new Date(fechas.anterior.inicio);
+      const fin = new Date(fechas.anterior.fin);
+      return fechaCompra >= inicio && fechaCompra <= fin;
+    });
+
+    // Calcular estadísticas
+    const totalProducts = variantes.length;
+    const productGrowth = comprasAnteriores.length > 0 ?
+      Math.round(((comprasActuales.length - comprasAnteriores.length) / comprasAnteriores.length) * 100) : 0;
+
+    const recentSales = comprasActuales.reduce((sum, compra) => sum + (compra.total || 0), 0);
+    const previousSales = comprasAnteriores.reduce((sum, compra) => sum + (compra.total || 0), 0);
+    const salesGrowth = previousSales > 0 ?
+      Math.round(((recentSales - previousSales) / previousSales) * 100) : 0;
+
+    // Identificar productos con stock bajo (<=10)
+    const productosStockBajo = variantes.filter(variante => (variante.stock || 0) <= 10);
+    const lowStockProducts = productosStockBajo.length;
+
+    // Preparar datos para la tabla de stock bajo
+    const productosTabla = productosStockBajo.map(variante => {
+      return {
+        id: variante.id,
+        producto: variante.producto,
+        stock: variante.stock || 0,
+        precio: variante.precio || 0,
+        imagen: variante.imagen,
+        cantidad: variante.cantidad,
+        stockLevel: (variante.stock || 0) <= 5 ? 'low' : 'medium',
+        icon: obtenerIconoCategoria(variante.producto?.categoria?.nombre)
+      };
+    });
+
+    setDashboardData({
+      totalProducts,
+      productGrowth,
+      recentSales,
+      salesGrowth,
+      lowStockProducts,
+      lowStockIncrease: Math.floor(Math.random() * 10) // Placeholder para el incremento
+    });
+
+    setLowStockProducts(productosTabla);
+  };
+
+  const obtenerIconoCategoria = (categoria) => {
+    const iconos = {
+      'Ron': 'fas fa-wine-bottle',
+      'ROn': 'fas fa-wine-bottle',
+      'Whisky': 'fas fa-wine-glass-alt',
+      'Tequila': 'fas fa-wine-bottle',
+      'Vodka': 'fas fa-cocktail',
+      'Gin': 'fas fa-cocktail',
+      'Cerveza': 'fas fa-beer',
+      'Vino': 'fas fa-wine-glass'
+    };
+    return iconos[categoria] || 'fas fa-bottle-droplet';
+  };
+
+  const initCharts = (compras, detalles, variantes) => {
+    // Destruir gráficos existentes antes de crear nuevos
+    if (chartInstancesRef.current.salesChart) {
+      chartInstancesRef.current.salesChart.destroy();
+    }
+    if (chartInstancesRef.current.categoryChart) {
+      chartInstancesRef.current.categoryChart.destroy();
+    }
+
+    // Procesar datos para gráfico de ventas mensuales
+    const ventasMensuales = procesarVentasMensuales(compras);
+
+    // Procesar datos para gráfico de categorías
+    const categoriasDatos = procesarCategorias(variantes, detalles);
+
+    // Inicializar gráfico de ventas
+    if (salesChartRef.current) {
+      const salesCtx = salesChartRef.current.getContext('2d');
+      chartInstancesRef.current.salesChart = new ChartJS(salesCtx, {
+        type: 'line',
+        data: {
+          labels: ventasMensuales.labels,
+          datasets: [{
+            label: 'Ventas 2025',
+            data: ventasMensuales.data,
+            borderColor: 'rgb(139, 92, 246)',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: 'rgb(209, 213, 219)'
+              }
+            }
+          },
+          scales: {
+            y: {
+              grid: {
+                color: 'rgba(75, 85, 99, 0.2)'
+              },
+              ticks: {
+                color: 'rgb(209, 213, 219)'
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(75, 85, 99, 0.2)'
+              },
+              ticks: {
+                color: 'rgb(209, 213, 219)'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Inicializar gráfico de categorías
+    if (categoryChartRef.current) {
+      const categoryCtx = categoryChartRef.current.getContext('2d');
+      chartInstancesRef.current.categoryChart = new ChartJS(categoryCtx, {
+        type: 'doughnut',
+        data: {
+          labels: categoriasDatos.labels,
+          datasets: [{
+            data: categoriasDatos.data,
+            backgroundColor: [
+              'rgba(139, 92, 246, 0.8)', // Purple
+              'rgba(59, 130, 246, 0.8)', // Blue
+              'rgba(16, 185, 129, 0.8)', // Green
+              'rgba(245, 158, 11, 0.8)', // Yellow
+              'rgba(239, 68, 68, 0.8)',   // Red
+              'rgba(236, 72, 153, 0.8)', // Pink
+              'rgba(20, 184, 166, 0.8)'  // Teal
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                color: 'rgb(209, 213, 219)'
+              }
+            }
+          }
+        }
+      });
+    }
+  };
+
+  const procesarVentasMensuales = (compras) => {
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const ventasPorMes = new Array(12).fill(0);
+
+    compras.forEach(compra => {
+      const fecha = new Date(compra.fecha);
+      const mes = fecha.getMonth();
+      ventasPorMes[mes] += compra.total || 0;
+    });
+
+    // Obtener los últimos 6 meses
+    const hoy = new Date();
+    const mesActual = hoy.getMonth();
+    const labels = [];
+    const data = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const mesIndex = (mesActual - i + 12) % 12;
+      labels.push(meses[mesIndex]);
+      data.push(ventasPorMes[mesIndex]);
+    }
+
+    return { labels, data };
+  };
+
+  const procesarCategorias = (variantes, detalles) => {
+    const categorias = {};
+
+    // Contar productos por categoría
+    variantes.forEach(variante => {
+      const categoria = variante.producto?.categoria?.nombre || 'Sin categoría';
+      if (!categorias[categoria]) {
+        categorias[categoria] = 0;
+      }
+
+      // Contar las ventas de esta variante
+      const ventasVariante = detalles.filter(detalle => detalle.id_variante === variante.id);
+      const totalVendido = ventasVariante.reduce((sum, detalle) => sum + (detalle.cantidad || 0), 0);
+      categorias[categoria] += totalVendido;
+    });
+
+    // Ordenar por ventas y tomar los top 5
+    const categoriasOrdenadas = Object.entries(categorias)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+
+    return {
+      labels: categoriasOrdenadas.map(([categoria]) => categoria),
+      data: categoriasOrdenadas.map(([, cantidad]) => cantidad)
+    };
+  };
 
   const handleEdit = (productId) => {
     const product = lowStockProducts.find(p => p.id === productId);
@@ -176,24 +425,33 @@ const Dashboard = () => {
     setEditModalOpen(true);
   };
 
-  const handleSaveProduct = (updatedProduct) => {
-    setLowStockProducts(prev => 
-      prev.map(product => 
-        product.id === updatedProduct.id ? updatedProduct : product
-      )
-    );
-    console.log('Producto actualizado:', updatedProduct);
+  const handleSaveProduct = async () => {
+    try {
+      // Recargar datos después de guardar
+      await cargarDatos();
+      console.log('Producto actualizado exitosamente');
+    } catch (error) {
+      console.error('Error al actualizar producto:', error);
+      setError('Error al actualizar el producto');
+    }
   };
 
-  const handleDelete = (productId) => {
+  const handleDelete = async (productId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      setLowStockProducts(prev => prev.filter(product => product.id !== productId));
-      console.log('Producto eliminado:', productId);
+      try {
+        await axios.delete(`${API_BASE}/variantes/${productId}`);
+        console.log('Producto eliminado exitosamente');
+        cargarDatos(); // Recargar datos
+      } catch (error) {
+        console.error('Error al eliminar producto:', error);
+        setError('Error al eliminar el producto');
+      }
     }
   };
 
   const handleViewAll = () => {
     console.log('Ver todos los productos');
+    // Aquí podrías navegar a una página de productos completa
   };
 
   const getStockLevelClass = (level) => {
@@ -218,6 +476,28 @@ const Dashboard = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white">Cargando datos del dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-900 bg-opacity-20 border border-red-500 text-red-200 p-4 rounded-lg">
+        Error: {error}
+        <button
+          onClick={cargarDatos}
+          className="ml-4 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white text-sm"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div id="dashboard-view" className="block p-6">
       {/* Cards Section */}
@@ -230,9 +510,10 @@ const Dashboard = () => {
               <i className="fas fa-wine-glass text-purple-700"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold mt-2">{dashboardData.totalProducts}</p>
-          <p className="text-green-400 text-sm mt-2">
-            <i className="fas fa-arrow-up"></i> {dashboardData.productGrowth}% desde el mes pasado
+          <p className="text-3xl font-bold mt-2 text-white">{dashboardData.totalProducts}</p>
+          <p className={`text-sm mt-2 ${dashboardData.productGrowth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <i className={`fas fa-arrow-${dashboardData.productGrowth >= 0 ? 'up' : 'down'}`}></i>
+            {Math.abs(dashboardData.productGrowth)}% desde el mes pasado
           </p>
         </div>
 
@@ -244,9 +525,10 @@ const Dashboard = () => {
               <i className="fas fa-chart-line text-green-700"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold mt-2">${dashboardData.recentSales.toLocaleString()}</p>
-          <p className="text-green-400 text-sm mt-2">
-            <i className="fas fa-arrow-up"></i> {dashboardData.salesGrowth}% desde la semana pasada
+          <p className="text-3xl font-bold mt-2 text-white">${dashboardData.recentSales.toLocaleString()}</p>
+          <p className={`text-sm mt-2 ${dashboardData.salesGrowth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <i className={`fas fa-arrow-${dashboardData.salesGrowth >= 0 ? 'up' : 'down'}`}></i>
+            {Math.abs(dashboardData.salesGrowth)}% desde el mes pasado
           </p>
         </div>
 
@@ -258,9 +540,9 @@ const Dashboard = () => {
               <i className="fas fa-exclamation-triangle text-red-700"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold mt-2">{dashboardData.lowStockProducts}</p>
+          <p className="text-3xl font-bold mt-2 text-white">{dashboardData.lowStockProducts}</p>
           <p className="text-red-400 text-sm mt-2">
-            <i className="fas fa-arrow-up"></i> {dashboardData.lowStockIncrease} más desde ayer
+            <i className="fas fa-exclamation-circle"></i> Requieren atención inmediata
           </p>
         </div>
       </div>
@@ -269,15 +551,15 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-gray-800 rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-300 mb-4">Ventas Mensuales</h3>
-          <div className="h-64 flex items-center justify-center bg-gray-700 rounded">
-            <p className="text-gray-400">Gráfico de ventas mensuales</p>
+          <div className="h-64">
+            <canvas ref={salesChartRef} id="salesChart"></canvas>
           </div>
         </div>
 
         <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-300 mb-4">Top Categorías</h3>
-          <div className="h-64 flex items-center justify-center bg-gray-700 rounded">
-            <p className="text-gray-400">Gráfico de categorías</p>
+          <h3 className="text-lg font-semibold text-gray-300 mb-4">Productos Más Vendidos por Categoría</h3>
+          <div className="h-64">
+            <canvas ref={categoryChartRef} id="categoryChart"></canvas>
           </div>
         </div>
       </div>
@@ -287,80 +569,88 @@ const Dashboard = () => {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-300">Productos con Stock Bajo</h3>
           <button
-            onClick={handleViewAll}
+            onClick={() => navigate('/products')}
             className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded transition-colors"
           >
             Ver Todos
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Producto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Categoría
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Precio
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700 text-left">
-              {lowStockProducts.map((product) => (
-                <tr key={product.id} className={getRowClass(product.stockLevel)}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded bg-gray-700 flex items-center justify-center mr-3">
-                        <i className={`${product.icon} text-gray-400`}></i>
-                      </div>
-                      <span className="text-white">{product.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                    {product.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStockLevelClass(product.stockLevel)}`}>
-                      {product.stock} unidades
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                    ${product.price}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleEdit(product.id)}
-                      className="text-blue-400 hover:text-blue-500 mr-3 transition-colors"
-                      title="Editar producto"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="text-red-400 hover:text-red-500 transition-colors"
-                      title="Eliminar producto"
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </td>
+
+        {lowStockProducts.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <i className="fas fa-check-circle text-4xl mb-4"></i>
+            <p>¡Excelente! No hay productos con stock bajo</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Producto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Categoría
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Stock
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Precio
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Acciones
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {lowStockProducts.map((product) => (
+                  <tr key={product.id} className={getRowClass(product.stockLevel)}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded bg-gray-700 flex items-center justify-center mr-3">
+                          <i className={`${product.icon} text-gray-400`}></i>
+                        </div>
+                        <span className="text-white">{product.producto?.nombre || 'Producto sin nombre'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                      {product.producto?.categoria?.nombre || 'Sin categoría'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStockLevelClass(product.stockLevel)}`}>
+                        {product.stock} unidades
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-300">
+                      ${Number(product.precio).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleEdit(product.id)}
+                        className="text-blue-400 hover:text-blue-500 mr-3 transition-colors"
+                        title="Editar producto"
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="text-red-400 hover:text-red-500 transition-colors"
+                        title="Eliminar producto"
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Modal de Edición */}
-      <EditProductModal
+      {/* Edit Product Modal */}
+      <EditProducts
         product={selectedProduct}
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}

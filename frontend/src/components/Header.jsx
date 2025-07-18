@@ -14,13 +14,6 @@ const Header = ({ pageTitle = "Licorería 360", userName = "Usuario" }) => {
       <div className="flex items-center px-4">
         <h1 className="text-xl font-bold mr-4">{pageTitle}</h1>
         <div className="flex-grow max-w-md">
-          {/*<input
-            type="text"
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-1 rounded-full px-4 py-2 text-left text-sm/6 text-gray-950/50 inset-ring inset-ring-gray-950/8 sm:w-80 dark:bg-white/5 dark:text-white/50 dark:inset-ring-white/15"
-            placeholder="Buscar productos..."
-          />*/}
         </div>
       </div>
       <div className="flex items-center px-4">

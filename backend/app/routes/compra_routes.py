@@ -1,42 +1,52 @@
-from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlmodel import Session, select
+
 from app.models.compra import Compra
 from app.database import get_session
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/compras",
+    tags=["compras"]
+)
 
-@router.get("/compras")
+@router.get("/", response_model=List[Compra])
 def get_compras(session: Session = Depends(get_session)):
-    productos = session.query(Compra).all()
-    return productos
-        
+    """Devuelve todas las compras registradas en la base de datos"""
+    compras = session.exec(select(Compra)).all()
+    return compras
 
-@router.post("/compras")
-def add_compras(compra: Compra, session: Session = Depends(get_session)):
+@router.post("/", response_model=Compra, status_code=status.HTTP_201_CREATED)
+def add_compra(compra: Compra, session: Session = Depends(get_session)):
+    """Crea una nueva compra con fecha y total"""
     session.add(compra)
     session.commit()
-    session.refresh()
+    session.refresh(compra)
     return compra
 
-@router.put("/compras/{compra_id}")
+@router.put("/{compra_id}", response_model=Compra)
 def update_compra(compra_id: int, compra: Compra, session: Session = Depends(get_session)):
-    existing_compra = session.query(Compra).filter(Compra.id == compra_id).first()
-    if not existing_compra:
-        return {"error": "Compra not found"}
+    """Actualiza los datos de una compra existente"""
+    existing = session.get(Compra, compra_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
     
-    for key, value in compra.dict().items():
-        setattr(existing_compra, key, value)
+    compra_data = compra.dict(exclude_unset=True)
+    for key, value in compra_data.items():
+        setattr(existing, key, value)
     
+    session.add(existing)
     session.commit()
-    session.refresh(existing_compra)
-    return existing_compra
+    session.refresh(existing)
+    return existing
 
-@router.delete("/compras/{compra_id}")
+@router.delete("/{compra_id}")
 def delete_compra(compra_id: int, session: Session = Depends(get_session)):
-    compra = session.query(Compra).filter(Compra.id == compra_id).first()
-    if not compra:
-        return {"error": "Compra not found"}
-    
-    session.delete(compra)
+    """Elimina una compra por su ID"""
+    existing = session.get(Compra, compra_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Compra no encontrada")
+    session.delete(existing)
     session.commit()
-    return {"message": "Compra deleted successfully"}
+    return {"message": "Compra eliminada correctamente"}

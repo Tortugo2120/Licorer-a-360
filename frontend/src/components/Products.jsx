@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import AddProducts from "./AddProducts";
+import AddCategory from "./AddCategory.jsx";
 import EditProducts from "./EditProducts.jsx";
+import AddVariant from "./AddVariant.jsx";
 import axios from "axios";
 import { defaultApi } from "../api.js";
 
@@ -9,6 +11,8 @@ const resultado = await defaultApi.getVariantesVariantesGet();
 
 const Products = ({ uploadedFiles }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showAddVarianModal, setShowAddVariantModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState([]);
@@ -21,7 +25,7 @@ const Products = ({ uploadedFiles }) => {
   const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedcategoria, setSelectedcategoria] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,22 +33,23 @@ const Products = ({ uploadedFiles }) => {
         const response = await axios.get("http://localhost:8000/variantes");
 
         // Transformar datos del API al formato esperado por el frontend
-        const transformedProducts = response.data.map((variante) => ({
-          id: variante.id,
-          name: variante.producto?.nombre || "Producto sin nombre",
-          category: variante.producto?.categoria?.nombre || "Sin categoría",
-          price: variante.precio || 0,
-          stock: variante.stock || 0,
-          quantity: variante.cantidad || 0,
-          description: variante.producto?.descripcion || "Sin descripción",
+        const formData = response.data.map((product) => ({
+          id: product.id,
+          imagen: product.imagen,
+          nombre: product.producto?.nombre || 'Sin nombre',
+          categoria: product.producto?.categoria?.nombre || "Sin categoría",
+          precio: product.precio || 0,
+          stock: product.stock || 0,
+          cantidad: product.cantidad || 0,
+          descripcion: product.producto?.descripcion || "Sin descripción",
           createdAt: new Date().toISOString(),
         }));
 
-        setProducts(transformedProducts);
+        setProducts(formData);
 
         // Extraer categorías únicas de los productos
         const uniqueCategories = [
-          ...new Set(transformedProducts.map((p) => p.category)),
+          ...new Set(formData.map((p) => p.categoria)),
         ];
         const categoriesWithAll = [
           { value: "", label: "Todas las categorías" },
@@ -90,7 +95,7 @@ const Products = ({ uploadedFiles }) => {
     );
   }
 
-  const handleAddProduct = (newProduct) => {};
+  const handleAddProduct = (newProduct) => { };
 
   const handleEditProduct = (productId) => {
     const product = products.find((p) => p.id === productId);
@@ -100,9 +105,9 @@ const Products = ({ uploadedFiles }) => {
     }
   };
 
-  const handleUpdateProduct = (updatedProduct) => {};
+  const handleUpdateProduct = (updatedProduct) => { };
 
-  const handleDeleteProduct = (productId) => {};
+  const handleDeleteProduct = (productId) => { };
 
   const getStockStatus = (stock) => {
     if (stock === undefined || stock === null) {
@@ -113,20 +118,32 @@ const Products = ({ uploadedFiles }) => {
     return { text: "En stock", color: "text-green-500" };
   };
 
+  const handleAddCategory = async (newCategory) => {
+    // Refrescar la lista de categorías
+    await fetchCategorias();
+    console.log("Categoría agregada exitosamente:", newCategory);
+  };
+
+  const handleAddVariant = async (newVariant) => {
+    // Refrescar la lista de variantes (productos)
+    await fetchVariantes();
+    console.log("Variante agregada exitosamente:", newVariant);
+  };
+
   // Filtrar productos
   const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
+    const matchesSearch = product.nombre
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchescategoria =
+      selectedcategoria === "" || product.categoria === selectedcategoria;
+    return matchesSearch && matchescategoria;
   });
 
   // Estadísticas (adaptadas para campos que pueden no existir)
   const totalProducts = products.length;
   const totalValue = products.reduce(
-    (sum, product) => sum + (product.price || 0) * (product.stock || 0),
+    (sum, product) => sum + (product.precio || 0) * (product.stock || 0),
     0
   );
   const lowStockProducts = products.filter(
@@ -143,13 +160,29 @@ const Products = ({ uploadedFiles }) => {
           </h2>
           <p className="text-gray-400">Administra tu inventario de licores</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
-        >
-          <i className="fas fa-plus mr-2"></i>
-          Añadir Producto
-        </button>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setShowAddCategoryModal(true)}
+            className="bg-indigo-500 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            Añadir Categoria
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            Añadir Producto
+          </button>
+          <button
+            onClick={() => setShowAddVariantModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+          >
+            <i className="fas fa-plus mr-2"></i>
+            Añadir Variante
+          </button>
+        </div>
       </div>
 
       {/* Estadísticas */}
@@ -208,8 +241,8 @@ const Products = ({ uploadedFiles }) => {
               Filtrar por categoría
             </label>
             <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              value={selectedcategoria}
+              onChange={(e) => setSelectedcategoria(e.target.value)}
               className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500"
             >
               {categories.map((cat) => (
@@ -251,20 +284,20 @@ const Products = ({ uploadedFiles }) => {
                           <div className="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
                             <i className="fas fa-wine-bottle text-sm text-gray-400"></i>
                           </div>
-                          <span className="font-medium">{product.name}</span>
+                          <span className="font-medium">{product.nombre}</span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        {product.category || "Sin categoría"}
+                        {product.categoria || "Sin categoría"}
                       </td>
                       <td className="py-3 px-4 font-medium">
-                        {product.quantity
-                          ? `${product.quantity} ml`
+                        {product.cantidad
+                          ? `${product.cantidad} ml`
                           : "No disponible"}
                       </td>
                       <td className="py-3 px-4 font-medium">
-                        {product.price
-                          ? `$${product.price.toFixed(2)}`
+                        {product.precio
+                          ? `$${product.precio.toFixed(2)}`
                           : "No disponible"}
                       </td>
                       <td className="py-3 px-4">{product.stock || "0"}</td>
@@ -307,8 +340,15 @@ const Products = ({ uploadedFiles }) => {
             </tbody>
           </table>
         </div>
-        {JSON.stringify(resultado)}
+        {/*JSON.stringify(resultado)*/}
       </div>
+
+      {/* Modal para añadir categoria */}
+      <AddCategory
+        isOpen={showAddCategoryModal}
+        onClose={() => setShowAddCategoryModal(false)}
+        onAddCategory={handleAddCategory}
+      />
 
       {/* Modal para añadir producto */}
       <AddProducts
@@ -316,7 +356,12 @@ const Products = ({ uploadedFiles }) => {
         onClose={() => setShowAddModal(false)}
         onAddProduct={handleAddProduct}
       />
-
+      {/* Modal para añadir variante */}
+      <AddVariant
+        isOpen={showAddVarianModal}
+        onClose={() => setShowAddVariantModal(false)}
+        onAddVariant={handleAddVariant}
+      />
       {/* Modal para editar producto */}
       <EditProducts
         isOpen={showEditModal}

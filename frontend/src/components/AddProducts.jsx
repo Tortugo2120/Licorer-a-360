@@ -1,96 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
     const [formData, setFormData] = useState({
-        name: '',
-        category: '',
-        sku: '',
-        price: '',
-        quantity: '',
-        supplier: '',
-        image: null
+        name: "",
+        description: "",
+        id_categoria: "",
     });
 
-    const [imagePreview, setImagePreview] = useState(null);
+    const [categorias, setCategorias] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [loadingCategorias, setLoadingCategorias] = useState(false);
+    const [error, setError] = useState("");
 
-    const categories = [
-        { value: 'wine', label: 'Vinos' },
-        { value: 'whisky', label: 'Whisky' },
-        { value: 'vodka', label: 'Vodka' },
-        { value: 'rum', label: 'Ron' },
-        { value: 'tequila', label: 'Tequila' }
-    ];
+    // Función para obtener las categorías desde la API
+    const fetchCategorias = async () => {
+        setLoadingCategorias(true);
+        try {
+            const response = await axios.get("http://localhost:8000/categorias");
+            setCategorias(response.data);
+        } catch (err) {
+            console.error("Error al obtener categorías:", err);
+            setError("Error al cargar las categorías");
+        } finally {
+            setLoadingCategorias(false);
+        }
+    };
 
-    const suppliers = [
-        { value: 'supplier1', label: 'Global Spirits' },
-        { value: 'supplier2', label: 'Premium Drinks' },
-        { value: 'supplier3', label: 'Liquor Imports' }
-    ];
+    // Cargar categorías cuando el modal se abra
+    useEffect(() => {
+        if (isOpen) {
+            fetchCategorias();
+        }
+    }, [isOpen]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
+        setFormData((prev) => ({
             ...prev,
-            [name]: value
+            [name]: value,
         }));
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setFormData(prev => ({
-                ...prev,
-                image: file
-            }));
-
-            // Crear preview de la imagen
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError("");
 
-        // Validar campos requeridos
-        if (!formData.name || !formData.category || !formData.sku || !formData.price || !formData.quantity) {
-            alert('Por favor, complete todos los campos requeridos');
-            return;
+        try {
+            if (!formData.name || !formData.description || !formData.id_categoria) {
+                setError("Por favor, complete todos los campos requeridos");
+                return;
+            }
+
+            const newProduct = {
+                nombre: formData.name.trim(),
+                descripcion: formData.description.trim(),
+                id_categoria: parseInt(formData.id_categoria), // Convertir a número
+            };
+
+            const response = await axios.post(
+                "http://localhost:8000/productos",
+                newProduct
+            );
+
+            if (response.status === 200 || response.status === 201) {
+                if (onAddProduct) {
+                    onAddProduct(response.data);
+                }
+                resetForm();
+                console.log("Producto creado exitosamente");
+                onClose();
+            }
+        } catch (err) {
+            // Manejar errores
+            if (err.response?.data?.detail) {
+                setError(err.response.data.detail);
+            } else {
+                setError("Error al crear el producto. Inténtalo de nuevo.");
+            }
+            console.error("Error al crear producto:", err);
+        } finally {
+            setLoading(false);
         }
-
-        // Crear objeto del producto
-        const newProduct = {
-            id: Date.now(), // ID temporal basado en timestamp
-            ...formData,
-            price: parseFloat(formData.price),
-            quantity: parseInt(formData.quantity),
-            createdAt: new Date().toISOString()
-        };
-
-        // Llamar a la función callback para añadir el producto
-        if (onAddProduct) {
-            onAddProduct(newProduct);
-        }
-
-        // Limpiar formulario y cerrar modal
-        resetForm();
-        onClose();
     };
 
     const resetForm = () => {
         setFormData({
-            name: '',
-            category: '',
-            sku: '',
-            price: '',
-            quantity: '',
-            supplier: '',
-            image: null
+            name: "",
+            description: "",
+            id_categoria: "",
         });
-        setImagePreview(null);
+        setError("");
     };
 
     const handleCloseModal = () => {
@@ -106,7 +107,9 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
             <div className="bg-gray-800 w-11/12 md:max-w-md mx-auto rounded-lg shadow-lg overflow-y-auto max-h-[90vh]">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-white">Añadir Nuevo Producto</h3>
+                        <h3 className="text-xl font-bold text-white">
+                            Añadir Nuevo Producto
+                        </h3>
                         <button
                             onClick={handleCloseModal}
                             className="text-gray-400 hover:text-white transition-colors"
@@ -116,6 +119,13 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                     </div>
 
                     <form onSubmit={handleSubmit}>
+                        {/* Mostrar error si existe */}
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-900 border border-red-700 rounded-lg">
+                                <p className="text-red-300 text-sm">{error}</p>
+                            </div>
+                        )}
+
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-400 mb-1">
                                 Nombre del Producto *
@@ -128,6 +138,23 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                                 placeholder="Ingrese el nombre del producto"
                                 required
+                                disabled={loading}
+                            />
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-400 mb-1">
+                                Descripción*
+                            </label>
+                            <input
+                                type="text"
+                                name="description"
+                                value={formData.description}
+                                onChange={handleInputChange}
+                                className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
+                                placeholder="Un maravilloso producto..."
+                                required
+                                disabled={loading}
                             />
                         </div>
 
@@ -136,131 +163,22 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                                 Categoría *
                             </label>
                             <select
-                                name="category"
-                                value={formData.category}
+                                name="id_categoria"
+                                value={formData.id_categoria}
                                 onChange={handleInputChange}
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
                                 required
+                                disabled={loading || loadingCategorias}
                             >
-                                <option value="">Seleccione una categoría...</option>
-                                {categories.map(cat => (
-                                    <option key={cat.value} value={cat.value}>
-                                        {cat.label}
+                                <option value="">
+                                    {loadingCategorias ? "Cargando categorías..." : "Seleccione una categoría..."}
+                                </option>
+                                {categorias.map((categoria) => (
+                                    <option key={categoria.id} value={categoria.id}>
+                                        {categoria.nombre}
                                     </option>
                                 ))}
                             </select>
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                SKU *
-                            </label>
-                            <input
-                                type="text"
-                                name="sku"
-                                value={formData.sku}
-                                onChange={handleInputChange}
-                                className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                                placeholder="Ej: VTR-001"
-                                required
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
-                                    Precio ($) *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="price"
-                                    value={formData.price}
-                                    onChange={handleInputChange}
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                                    placeholder="0.00"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-400 mb-1">
-                                    Cantidad *
-                                </label>
-                                <input
-                                    type="number"
-                                    name="quantity"
-                                    value={formData.quantity}
-                                    onChange={handleInputChange}
-                                    min="0"
-                                    className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                                    placeholder="0"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                Proveedor
-                            </label>
-                            <select
-                                name="supplier"
-                                value={formData.supplier}
-                                onChange={handleInputChange}
-                                className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                            >
-                                <option value="">Seleccione un proveedor...</option>
-                                {suppliers.map(sup => (
-                                    <option key={sup.value} value={sup.value}>
-                                        {sup.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-400 mb-1">
-                                Imagen del Producto
-                            </label>
-                            <div className="flex items-center justify-center w-full">
-                                <label className="flex flex-col w-full h-32 border-2 border-dashed border-gray-600 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer transition-colors">
-                                    <div className="flex flex-col items-center justify-center pt-7">
-                                        {imagePreview ? (
-                                            <div className="relative">
-                                                <img
-                                                    src={imagePreview}
-                                                    alt="Preview"
-                                                    className="w-16 h-16 object-cover rounded"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setImagePreview(null);
-                                                        setFormData(prev => ({ ...prev, image: null }));
-                                                    }}
-                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <i className="fas fa-cloud-upload-alt text-3xl text-gray-400"></i>
-                                                <p className="pt-1 text-sm tracking-wider text-gray-400">
-                                                    Subir imagen
-                                                </p>
-                                            </>
-                                        )}
-                                    </div>
-                                    <input
-                                        type="file"
-                                        className="opacity-0"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                    />
-                                </label>
-                            </div>
                         </div>
 
                         <div className="flex justify-end pt-2 space-x-2">
@@ -268,14 +186,23 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                                 type="button"
                                 onClick={handleCloseModal}
                                 className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors"
+                                disabled={loading}
                             >
                                 Cancelar
                             </button>
                             <button
                                 type="submit"
-                                className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded transition-colors"
+                                className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                disabled={loading || loadingCategorias}
                             >
-                                Guardar Producto
+                                {loading ? (
+                                    <>
+                                        <i className="fas fa-spinner fa-spin mr-2"></i>
+                                        Guardando...
+                                    </>
+                                ) : (
+                                    "Guardar Producto"
+                                )}
                             </button>
                         </div>
                     </form>
