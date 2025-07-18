@@ -18,8 +18,6 @@ class Variante(SQLModel, table=True):
     
     producto: Optional["Producto"] = Relationship(back_populates="variantes")
     
-
-    
     detalles: list["DetalleCompra"] = Relationship(back_populates="variante")
     compras: list["Compra"] = Relationship(
         back_populates="variantes", link_model=DetalleCompra
