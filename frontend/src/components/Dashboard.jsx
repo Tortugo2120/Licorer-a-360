@@ -170,10 +170,10 @@ const Dashboard = () => {
     try {
       // Cargar todos los datos necesarios
       const [comprasResp, detallesResp, variantesResp, productosResp] = await Promise.all([
-        axios.get(`${API_BASE}/compras/`),
-        axios.get(`${API_BASE}/detalle_compras/`),
-        axios.get(`${API_BASE}/variantes/`),
-        axios.get(`${API_BASE}/productos/`)
+        axios.get(`${API_BASE}/compras`),
+        axios.get(`${API_BASE}/detalle_compras`),
+        axios.get(`${API_BASE}/variantes`),
+        axios.get(`${API_BASE}/productos`)
       ]);
 
       setCompras(comprasResp.data);
@@ -525,7 +525,7 @@ const Dashboard = () => {
               <i className="fas fa-chart-line text-green-700"></i>
             </div>
           </div>
-          <p className="text-3xl font-bold mt-2 text-white">${dashboardData.recentSales.toLocaleString()}</p>
+          <p className="text-3xl font-bold mt-2 text-white">S/{dashboardData.recentSales.toLocaleString()}</p>
           <p className={`text-sm mt-2 ${dashboardData.salesGrowth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             <i className={`fas fa-arrow-${dashboardData.salesGrowth >= 0 ? 'up' : 'down'}`}></i>
             {Math.abs(dashboardData.salesGrowth)}% desde el mes pasado

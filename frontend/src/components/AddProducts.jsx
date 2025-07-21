@@ -12,7 +12,6 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
     const [loading, setLoading] = useState(false);
     const [loadingCategorias, setLoadingCategorias] = useState(false);
     const [error, setError] = useState("");
-
     // Función para obtener las categorías desde la API
     const fetchCategorias = async () => {
         setLoadingCategorias(true);
@@ -71,6 +70,7 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                 resetForm();
                 console.log("Producto creado exitosamente");
                 onClose();
+                onAddProduct();
             }
         } catch (err) {
             // Manejar errores

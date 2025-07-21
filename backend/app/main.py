@@ -21,7 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 routes = [producto_router,categoria_router,variante_router,compra_router,detalle_compra_router, usuario_router]
 
 for i in routes:

@@ -6,29 +6,26 @@ import AddVariant from "./AddVariant.jsx";
 import axios from "axios";
 import { defaultApi } from "../api.js";
 
-const resultado = await defaultApi.getVariantesVariantesGet();
 
 
-const Products = ({ uploadedFiles }) => {
+
+const Products = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddVarianModal, setShowAddVariantModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState([]);
-
   const [categories, setCategories] = useState([
     { value: "", label: "Todas las categorías" },
   ]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedcategoria, setSelectedcategoria] = useState("");
 
-  useEffect(() => {
-    const fetchData = async () => {
+
+  const fetchData = async () => {
       try {
         const response = await axios.get("http://localhost:8000/variantes");
 
@@ -36,7 +33,7 @@ const Products = ({ uploadedFiles }) => {
         const formData = response.data.map((product) => ({
           id: product.id,
           imagen: product.imagen,
-          nombre: product.producto?.nombre || 'Sin nombre',
+          nombre: product.producto?.nombre || "Sin nombre",
           categoria: product.producto?.categoria?.nombre || "Sin categoría",
           precio: product.precio || 0,
           stock: product.stock || 0,
@@ -48,9 +45,7 @@ const Products = ({ uploadedFiles }) => {
         setProducts(formData);
 
         // Extraer categorías únicas de los productos
-        const uniqueCategories = [
-          ...new Set(formData.map((p) => p.categoria)),
-        ];
+        const uniqueCategories = [...new Set(formData.map((p) => p.categoria))];
         const categoriesWithAll = [
           { value: "", label: "Todas las categorías" },
           ...uniqueCategories.map((cat) => ({ value: cat, label: cat })),
@@ -64,6 +59,7 @@ const Products = ({ uploadedFiles }) => {
       }
     };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -95,7 +91,10 @@ const Products = ({ uploadedFiles }) => {
     );
   }
 
-  const handleAddProduct = (newProduct) => { };
+  const handleAddProductCreated = () => {
+    fetchData();
+    setShowAddModal(false);
+  };
 
   const handleEditProduct = (productId) => {
     const product = products.find((p) => p.id === productId);
@@ -105,9 +104,16 @@ const Products = ({ uploadedFiles }) => {
     }
   };
 
-  const handleUpdateProduct = (updatedProduct) => { };
+  const handleUpdateProduct = (updatedProduct) => {};
 
-  const handleDeleteProduct = (productId) => { };
+  const handleDeleteProduct = (id) => {
+    try{
+      defaultApi.deleteVarianteVariantes_varianteId_delete(id);
+    } catch (error) {
+      console.error("Error al eliminar la variante:", error);
+      throw error;
+    }
+  };
 
   const getStockStatus = (stock) => {
     if (stock === undefined || stock === null) {
@@ -307,7 +313,7 @@ const Products = ({ uploadedFiles }) => {
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="flex space-x-2">
+                        <div className="space-x-2">
                           <button
                             onClick={() => handleEditProduct(product.id)}
                             className="text-blue-400 hover:text-blue-300 transition-colors"
@@ -354,7 +360,7 @@ const Products = ({ uploadedFiles }) => {
       <AddProducts
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onAddProduct={handleAddProduct}
+        onAddProduct={handleAddProductCreated}
       />
       {/* Modal para añadir variante */}
       <AddVariant
@@ -362,7 +368,7 @@ const Products = ({ uploadedFiles }) => {
         onClose={() => setShowAddVariantModal(false)}
         onAddVariant={handleAddVariant}
       />
-      {/* Modal para editar producto */}
+      {/* Modal para editar variante(producto) */}
       <EditProducts
         isOpen={showEditModal}
         onClose={() => {

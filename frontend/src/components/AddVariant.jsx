@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { defaultApi } from "../api.js";
 
 const AddVariant = ({ isOpen, onClose, onAddVariant }) => {
   const [loading, setLoading] = useState(false);
@@ -15,23 +16,20 @@ const AddVariant = ({ isOpen, onClose, onAddVariant }) => {
     id_product: "",
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const productsResponse = await axios.get(
-          "http://localhost:8000/productos"
-        );
+  // Función para obtener los productos desde la API
+  const fetchProductos = async () => {
+    setLoadingProducts(true);
+    const productos = await defaultApi.getProductosProductosGet();
+    setProducts(productos);
+    setLoadingProducts(false);
+  };
 
-        const productsData = productsResponse.data;
-        setProducts(productsData);
-        setLoadingProducts(false);
-      } catch (err) {
-        setError("Error al cargar productos");
-        setLoadingProducts(false);
-      }
-    };
-    fetchData();
-  }, []);
+  // Cargar productos cuando el modal se abra
+  useEffect(() => {
+    if (isOpen) {
+      fetchProductos();
+    }
+  }, [isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

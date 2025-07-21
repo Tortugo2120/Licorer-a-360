@@ -22,8 +22,11 @@ def update_usuario(usuario_id: int, usuario: Usuario, session: Session = Depends
     existing_usuario = session.get(Usuario, usuario_id)
     if not existing_usuario:
         return {"error": "Usuario no encontrado"}
-    existing_usuario.nombre = usuario.nombre
-    existing_usuario.email = usuario.email
+    existing_usuario.nombres = usuario.nombres
+    existing_usuario.apellidos = usuario.apellidos
+    existing_usuario.correo = usuario.correo
+    existing_usuario.contrasena = usuario.contrasena
+    existing_usuario.dni = usuario.dni
     session.commit()
     session.refresh(existing_usuario)
     return existing_usuario

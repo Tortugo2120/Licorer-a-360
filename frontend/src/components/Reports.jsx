@@ -306,9 +306,7 @@ const Reports = () => {
                   <th className="px-6 py-3 text-left text-xs text-gray-400 uppercase">
                     Total
                   </th>
-                  <th className="px-6 py-3 text-left text-xs text-gray-400 uppercase">
-                    Acciones
-                  </th>
+                 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
@@ -332,14 +330,7 @@ const Reports = () => {
                       <td className="px-6 py-4 text-sm text-green-400 font-semibold">
                         S/{v.total.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-300">
-                        <button
-                          className="text-blue-400 hover:text-blue-500"
-                          title="Ver detalles"
-                        >
-                          <i className="fas fa-eye"></i>
-                        </button>
-                      </td>
+                      
                     </tr>
                   ))
                 ) : (
