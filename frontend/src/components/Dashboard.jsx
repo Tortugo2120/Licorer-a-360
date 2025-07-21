@@ -169,10 +169,11 @@ const Dashboard = () => {
 
     try {
       // Cargar todos los datos necesarios
-      const [comprasResp, detallesResp, variantesResp, productosResp] = await Promise.all([
+      const [comprasResp, detallesResp, variantesResp,variantesGrafico, productosResp] = await Promise.all([
         axios.get(`${API_BASE}/compras`),
         axios.get(`${API_BASE}/detalle_compras`),
         axios.get(`${API_BASE}/variantes`),
+        axios.get(`${API_BASE}/variantes/all`),
         axios.get(`${API_BASE}/productos`)
       ]);
 
@@ -186,7 +187,7 @@ const Dashboard = () => {
 
       // Inicializar gráficos después de procesar datos
       setTimeout(() => {
-        initCharts(comprasResp.data, detallesResp.data, variantesResp.data);
+        initCharts(comprasResp.data, detallesResp.data, variantesGrafico.data);
       }, 100);
 
     } catch (err) {
@@ -436,15 +437,16 @@ const Dashboard = () => {
     }
   };
 
-  const handleDelete = async (productId) => {
+  const handleChangeStateProduct = async (productId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
       try {
-        await axios.delete(`${API_BASE}/variantes/${productId}`);
-        console.log('Producto eliminado exitosamente');
+        await axios.put(`${API_BASE}/variantes/estado/${productId}`);
+        console.log('Cambio de estado exitoso');
         cargarDatos(); // Recargar datos
       } catch (error) {
-        console.error('Error al eliminar producto:', error);
-        setError('Error al eliminar el producto');
+        const message = 'Error al cambiar el estado del producto'
+        console.error(message, error);
+        setError(message);
       }
     }
   };
@@ -634,7 +636,7 @@ const Dashboard = () => {
                         <i className="fas fa-edit"></i>
                       </button>
                       <button
-                        onClick={() => handleDelete(product.id)}
+                        onClick={() => handleChangeStateProduct(product.id)}
                         className="text-red-400 hover:text-red-500 transition-colors"
                         title="Eliminar producto"
                       >

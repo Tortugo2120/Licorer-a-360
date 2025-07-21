@@ -13,6 +13,7 @@ class Variante(SQLModel, table=True):
     imagen: str
     stock: int
     cantidad: int 
+    activo: bool = Field(default=True)
     
     id_producto: Optional[int] = Field(default=None, foreign_key="producto.id")
     

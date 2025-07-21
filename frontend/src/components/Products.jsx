@@ -4,10 +4,6 @@ import AddCategory from "./AddCategory.jsx";
 import EditProducts from "./EditProducts.jsx";
 import AddVariant from "./AddVariant.jsx";
 import axios from "axios";
-import { defaultApi } from "../api.js";
-
-
-
 
 const Products = () => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -106,12 +102,17 @@ const Products = () => {
 
   const handleUpdateProduct = (updatedProduct) => {};
 
-  const handleDeleteProduct = (id) => {
-    try{
-      defaultApi.deleteVarianteVariantes_varianteId_delete(id);
-    } catch (error) {
-      console.error("Error al eliminar la variante:", error);
-      throw error;
+  const handleChangeStateProduct = async (product_id) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+      try {
+        await axios.put(`http://localhost:8000/variantes/estado/${product_id}`);
+        console.log('Cambio de estado exitoso');
+        fetchData();
+      } catch (error) {
+        const message = 'Error al cambiar el estado del producto'
+        console.error(message, error);
+        setError(message);
+      }
     }
   };
 
@@ -322,7 +323,7 @@ const Products = () => {
                             <i className="fas fa-edit"></i>
                           </button>
                           <button
-                            onClick={() => handleDeleteProduct(product.id)}
+                            onClick={() => handleChangeStateProduct(product.id)}
                             className="text-red-400 hover:text-red-300 transition-colors"
                             title="Eliminar producto"
                           >
