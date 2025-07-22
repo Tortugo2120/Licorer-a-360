@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.models.producto import Producto
-from app.models.schemas import ProductoRead
+from app.schemas.negocio_schema import ProductoRead
 from app.database import get_session
 
 router = APIRouter()

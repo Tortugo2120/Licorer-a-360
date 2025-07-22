@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.models.variante import Variante
-from app.models.schemas import VarianteRead
+from app.schemas.negocio_schema import VarianteRead
 from app.database import get_session
 
 router = APIRouter()
@@ -75,3 +75,19 @@ def cambiar_estado_variante(variante_id: int, session: Session = Depends(get_ses
     session.add(variante)
     session.commit()
     return {"message": "Variante cambiada correctamente"}
+
+# -- Actualizar stock de variante ---
+@router.patch("/variantes/stock/{variante_id}")
+def update_stock_variante(variante_id: int, stock: int, session: Session = Depends(get_session)):
+    variante = session.get(Variante, variante_id)
+    if not variante:
+        raise HTTPException(status_code=404, detail="Variante no encontrada")
+    
+    if stock < 0:
+        raise HTTPException(status_code=400, detail="El stock no puede ser negativo")
+    
+    variante.stock = stock
+    session.add(variante)
+    session.commit()
+    session.refresh(variante)
+    return variante

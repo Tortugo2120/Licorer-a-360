@@ -7,7 +7,7 @@ from app.routes.variante_routes import router as variante_router
 from app.routes.compra_routes import router as compra_router
 from app.routes.detalle_compra_routes import router as detalle_compra_router
 from app.routes.usuario_routes import router as usuario_router
-
+from app.auth.auth_router import auth_router
 from app.database import init_db
 
 app = FastAPI()
@@ -21,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-routes = [producto_router,categoria_router,variante_router,compra_router,detalle_compra_router, usuario_router]
+routes = [producto_router,categoria_router,variante_router,compra_router,detalle_compra_router, usuario_router,auth_router]
 
 for i in routes:
     app.include_router(i)

@@ -110,7 +110,7 @@ export default function Checkout() {
             const nuevoStock = Math.max(0, variante.stock - cantidad);
 
             // Actualizar stock en el backend
-            return axios.patch(`${API_BASE}/variantes/${varId}/`, {
+            return axios.patch(`${API_BASE}/variantes/stock/${varId}`, {
               stock: nuevoStock
             });
           })
@@ -120,17 +120,15 @@ export default function Checkout() {
       setCart({});
 
       // Recargar variantes para obtener stock actualizado del servidor
-      const resp = await axios.get(`${API_BASE}/variantes/`);
+      const resp = await axios.get(`${API_BASE}/variantes`);
       setVariantes(resp.data);
 
     } catch (success) {
       console.error(success);
       setSuccess(success.response?.data?.detail || 'Compra realizada con éxito.');
-
-
       // En caso de error, recargar variantes para restaurar stock correcto
       try {
-        const resp = await axios.get(`${API_BASE}/variantes/`);
+        const resp = await axios.get(`${API_BASE}/variantes`);
         setVariantes(resp.data);
       } catch (reloadErr) {
         console.error('Error recargando variantes:', reloadErr);

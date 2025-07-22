@@ -152,7 +152,7 @@ const AddProducts = ({ isOpen, onClose, onAddProduct }) => {
                                 value={formData.description}
                                 onChange={handleInputChange}
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                                placeholder="Un maravilloso producto..."
+                                placeholder="Producto con..."
                                 required
                                 disabled={loading}
                             />

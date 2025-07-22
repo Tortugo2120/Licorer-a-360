@@ -121,7 +121,6 @@ const AddCategory = ({ isOpen, onClose, onAddCategory }) => {
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 className="w-full bg-gray-700 border border-gray-600 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
-                                placeholder="Ej: Electrónicos, Ropa, Hogar..."
                                 disabled={loading}
                                 maxLength={50}
                             />

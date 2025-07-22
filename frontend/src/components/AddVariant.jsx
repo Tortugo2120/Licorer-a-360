@@ -156,7 +156,7 @@ const AddVariant = ({ isOpen, onClose, onAddVariant }) => {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">
-                  Precio ($) *
+                  Precio (S/) *
                 </label>
                 <input
                   type="number"
