@@ -72,6 +72,7 @@ function App() {
     localStorage.removeItem('token_type');
     localStorage.removeItem('user_name');
     localStorage.removeItem('user_data');
+    localStorage.removeItem('user_id');
     
     // Actualizar estado de autenticación
     setIsAuthenticated(false);
@@ -116,15 +117,21 @@ function App() {
       try {
         const parsedData = JSON.parse(savedUserData);
         console.log('Datos del usuario desde localStorage:', parsedData);
-        return parsedData;
+        
+        // Asegurar que tenga un ID válido
+        if (parsedData && (!parsedData.id || parsedData.id === null)) {
+          console.log('Datos sin ID, intentando obtener desde el servidor...');
+        } else {
+          return parsedData;
+        }
       } catch (e) {
         console.error('Error al parsear datos del localStorage:', e);
       }
     }
 
-    // Si no hay datos en localStorage, intentar obtenerlos del endpoint /auth/me
+    // Si no hay datos en localStorage o no tienen ID, obtenerlos del endpoint /auth/me
     try {
-      console.log('Obteniendo datos del perfil del usuario...');
+      console.log('Obteniendo datos del perfil del usuario desde /auth/me...');
       const res = await fetch('http://localhost:8000/auth/me', {
         method: 'GET',
         headers: {
@@ -136,47 +143,108 @@ function App() {
       if (res.ok) {
         const userData = await res.json();
         console.log('Datos del usuario desde /auth/me:', userData);
+        
+        // Asegurar que tenga los campos necesarios
+        const normalizedUserData = {
+          id: userData.id,
+          username: userData.username || userData.nombre || userData.correo,
+          name: userData.nombre || userData.username,
+          nombres: userData.nombres || userData.nombre,
+          correo: userData.correo,
+          ...userData // Preservar otros campos
+        };
+
+        console.log('Datos normalizados del usuario:', normalizedUserData);
+        
         // Guardar en localStorage para futuras consultas
-        localStorage.setItem('user_data', JSON.stringify(userData));
+        localStorage.setItem('user_data', JSON.stringify(normalizedUserData));
+        localStorage.setItem('user_id', normalizedUserData.id.toString());
         
         // También guardar el nombre de usuario si no existe
         if (!localStorage.getItem('user_name')) {
-          const displayName = userData.nombres || userData.username || userData.correo;
+          const displayName = normalizedUserData.nombres || normalizedUserData.username || normalizedUserData.correo;
           localStorage.setItem('user_name', displayName);
         }
         
-        return userData;
+        return normalizedUserData;
       } else {
         console.log('Error al obtener datos del perfil:', res.status);
+        const errorText = await res.text();
+        console.log('Error response:', errorText);
       }
     } catch (error) {
       console.error('Error al obtener datos del perfil:', error);
     }
 
-    // Si ningún método funciona, crear un objeto básico con datos disponibles
+    // Si /auth/me no funciona, intentar obtener usuario por correo
+    try {
+      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+      const userEmail = tokenPayload.sub || tokenPayload.email;
+      
+      if (userEmail) {
+        console.log('Intentando obtener usuario por correo:', userEmail);
+        
+        const res = await fetch(`http://localhost:8000/usuarios/email/${userEmail}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (res.ok) {
+          const userData = await res.json();
+          console.log('Datos del usuario obtenidos por correo:', userData);
+          
+          const normalizedUserData = {
+            id: userData.id,
+            username: userData.username || userData.nombre || userData.correo,
+            name: userData.nombre || userData.username,
+            nombres: userData.nombres || userData.nombre,
+            correo: userData.correo,
+            ...userData
+          };
+
+          // Guardar en localStorage
+          localStorage.setItem('user_data', JSON.stringify(normalizedUserData));
+          localStorage.setItem('user_id', normalizedUserData.id.toString());
+          
+          return normalizedUserData;
+        } else {
+          console.log('No se pudo obtener usuario por correo:', res.status);
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener usuario por correo:', error);
+    }
+
+    // Si ningún método funciona, intentar crear un ID temporal basado en el correo
     const userName = localStorage.getItem('user_name');
     if (userName) {
-      const basicUserData = {
-        id: null,
-        username: userName,
-        name: userName,
-        correo: userName // Asumir que user_name podría ser el correo
-      };
-      
-      // Intentar decodificar el token para obtener el ID o correo
       try {
         const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        if (tokenPayload.sub) {
-          basicUserData.correo = tokenPayload.sub;
-          basicUserData.id = tokenPayload.sub;
-        }
-        if (tokenPayload.user_id) {
-          basicUserData.id = tokenPayload.user_id;
-        }
-        console.log('Datos básicos del usuario creados:', basicUserData);
+        
+        // Crear un ID temporal basado en el hash del correo o usar timestamp
+        const tempId = Math.abs(userName.split('').reduce((hash, char) => {
+          return ((hash << 5) - hash) + char.charCodeAt(0);
+        }, 0));
+
+        const basicUserData = {
+          id: tempId,
+          username: userName,
+          name: userName,
+          nombres: userName,
+          correo: tokenPayload.sub || userName
+        };
+        
+        console.log('Datos básicos del usuario creados con ID temporal:', basicUserData);
+        
+        // Guardar temporalmente
+        localStorage.setItem('user_id', tempId.toString());
+        
         return basicUserData;
       } catch (e) {
-        console.error('Error al decodificar token:', e);
+        console.error('Error al crear datos básicos:', e);
       }
     }
 
@@ -219,46 +287,23 @@ function App() {
           
           if (!mounted) return;
           
-          if (userDataResult) {
+          if (userDataResult && userDataResult.id) {
             setUserData(userDataResult);
-            console.log('Datos del usuario establecidos:', userDataResult);
+            console.log('Datos del usuario establecidos correctamente:', userDataResult);
+            console.log('ID del usuario:', userDataResult.id, typeof userDataResult.id);
           } else {
-            console.warn('No se pudieron obtener datos del usuario, pero el token es válido');
-            // Crear datos mínimos para mantener la sesión activa
-            const minimalUserData = {
-              id: Date.now(),
-              username: localStorage.getItem('user_name') || 'Usuario',
-              name: localStorage.getItem('user_name') || 'Usuario',
-              correo: localStorage.getItem('user_name') || 'usuario@example.com'
-            };
-            setUserData(minimalUserData);
-            console.log('Usando datos mínimos del usuario:', minimalUserData);
+            console.warn('No se pudieron obtener datos del usuario con ID válido');
+            // Si no se puede obtener un ID válido, cerrar sesión
+            handleLogout();
           }
         } else {
           console.log('Token inválido, limpiando localStorage y redirigiendo...');
-          // Token inválido, limpiar todo
           handleLogout();
         }
       } catch (error) {
         console.error('Error en checkAuth:', error);
         if (mounted) {
-          // En caso de error, mantener la sesión si hay token pero sin datos
-          const token = localStorage.getItem('access_token');
-          if (token) {
-            console.log('Error en verificación pero hay token, manteniendo sesión...');
-            setIsAuthenticated(true);
-            // Datos mínimos de fallback
-            const fallbackUserData = {
-              id: Date.now(),
-              username: localStorage.getItem('user_name') || 'Usuario',
-              name: localStorage.getItem('user_name') || 'Usuario',
-              correo: 'usuario@example.com'
-            };
-            setUserData(fallbackUserData);
-          } else {
-            setIsAuthenticated(false);
-            setUserData(null);
-          }
+          handleLogout();
         }
       } finally {
         if (mounted) {

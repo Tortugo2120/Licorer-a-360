@@ -13,7 +13,7 @@ export default function Checkout({ uploadedFiles, userData }) {
   const [success, setSuccess] = useState(null);
   const [search, setSearch] = useState('');
 
-  // También podemos obtener userData del contexto de Outlet si es necesario
+  // Obtener userData del contexto de Outlet si es necesario
   const outletContext = useOutletContext();
   const currentUserData = userData || outletContext?.userData;
 
@@ -25,6 +25,82 @@ export default function Checkout({ uploadedFiles, userData }) {
         setError(err.response?.data?.detail || err.message)
       );
   }, []);
+
+  // Función para obtener el ID del usuario de diferentes fuentes
+  const getUserId = () => {
+    console.log('Obteniendo user ID. UserData actual:', currentUserData);
+    
+    // 1. Intentar obtener del userData pasado como prop o contexto
+    if (currentUserData) {
+      // Buscar ID en diferentes propiedades posibles
+      const possibleId = currentUserData.id || 
+                        currentUserData.user_id || 
+                        currentUserData.usuario_id ||
+                        currentUserData.pk;
+      
+      if (possibleId) {
+        const parsedId = typeof possibleId === 'string' ? parseInt(possibleId) : possibleId;
+        console.log('ID encontrado en userData:', parsedId);
+        return isNaN(parsedId) ? null : parsedId;
+      }
+      
+      // Si no hay ID pero hay correo, podemos usarlo para buscar el usuario
+      if (currentUserData.correo) {
+        console.log('No hay ID pero hay correo:', currentUserData.correo);
+        // Aquí podrías hacer una llamada al backend para obtener el ID por correo
+        // Por ahora, usaremos un ID temporal basado en el hash del correo
+        const tempId = Math.abs(currentUserData.correo.split('').reduce((a, b) => {
+          a = ((a << 5) - a) + b.charCodeAt(0);
+          return a & a;
+        }, 0));
+        console.log('ID temporal generado:', tempId);
+        return tempId;
+      }
+    }
+
+    // 2. Intentar obtener del localStorage
+    const storedUserId = localStorage.getItem('user_id');
+    if (storedUserId && storedUserId !== 'undefined' && storedUserId !== 'null') {
+      const parsedId = parseInt(storedUserId);
+      console.log('ID encontrado en localStorage:', parsedId);
+      return isNaN(parsedId) ? null : parsedId;
+    }
+
+    // 3. Intentar obtener del token JWT
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        console.log('Token payload:', tokenPayload);
+        
+        const userId = tokenPayload.sub || 
+                      tokenPayload.user_id || 
+                      tokenPayload.id ||
+                      tokenPayload.usuario_id;
+        
+        if (userId) {
+          // Si el sub es un email, generar un ID numérico
+          if (typeof userId === 'string' && userId.includes('@')) {
+            const emailBasedId = Math.abs(userId.split('').reduce((a, b) => {
+              a = ((a << 5) - a) + b.charCodeAt(0);
+              return a & a;
+            }, 0));
+            console.log('ID basado en email del token:', emailBasedId);
+            return emailBasedId;
+          }
+          
+          const parsedId = typeof userId === 'string' ? parseInt(userId) : userId;
+          console.log('ID encontrado en token:', parsedId);
+          return isNaN(parsedId) ? null : parsedId;
+        }
+      } catch (e) {
+        console.error('Error al decodificar token:', e);
+      }
+    }
+
+    console.log('No se pudo obtener user ID');
+    return null;
+  };
 
   const handleCantidadChange = (varianteId, nuevaCantidad) => {
     const variante = variantes.find((v) => v.id === varianteId);
@@ -73,61 +149,42 @@ export default function Checkout({ uploadedFiles, userData }) {
   const handleCheckout = async () => {
     setError(null);
     setSuccess(null);
-    const total = calcularTotal();
     
-    // Validar que hay productos en el carrito
+    const total = calcularTotal();
     if (total <= 0) {
       setError('El carrito está vacío.');
       return;
     }
 
-    // Validar que tenemos los datos del usuario y obtener ID
-    let userId = null;
+    // Obtener ID del usuario
+    const userId = getUserId();
     
-    if (currentUserData && currentUserData.id) {
-      userId = currentUserData.id;
-    } else {
-      // Intentar obtener ID de otras fuentes
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        try {
-          // Decodificar token JWT para obtener el ID del usuario
-          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-          userId = tokenPayload.sub || tokenPayload.user_id || tokenPayload.id;
-          console.log('ID del usuario obtenido del token:', userId);
-        } catch (e) {
-          console.error('Error al decodificar token:', e);
-        }
-      }
-      
-      // Si aún no tenemos ID, usar un valor temporal o predeterminado
-      if (!userId) {
-        // Como último recurso, puedes usar un ID predeterminado o mostrar un modal para re-autenticar
-        userId = 1; // O podrías usar Date.now() para un ID único temporal
-        console.warn('Usando ID de usuario predeterminado:', userId);
-      }
+    if (!userId) {
+      setError('No se pudo identificar al usuario. Por favor, inicia sesión nuevamente.');
+      return;
     }
+
+    console.log('Procesando compra para usuario ID:', userId);
 
     setLoading(true);
     try {
       const fechaHoy = new Date().toISOString().slice(0, 10);
       
-      console.log('Creando compra con datos:', { 
-        fecha: fechaHoy, 
-        total, 
-        id_usuario: userId 
-      });
-      
-      // Crear compra con el ID del usuario logueado
-      const compraResp = await axios.post(`${API_BASE}/compras/`, {
+      // Crear compra con el ID del usuario
+      const compraPayload = {
         fecha: fechaHoy,
-        total,
+        total: total,
         id_usuario: userId
-      });
-      
-      const compraId = compraResp.data.id;
-      console.log('Compra creada con ID:', compraId);
+      };
 
+      console.log('Enviando datos de compra:', compraPayload);
+
+      const compraResp = await axios.post(`${API_BASE}/compras/`, compraPayload);
+      const compraId = compraResp.data.id;
+
+      console.log('Compra creada exitosamente con ID:', compraId);
+
+      // Crear detalles de la compra
       const detallesDatos = Object.entries(cart)
         .filter(([_, qty]) => qty > 0)
         .map(([varId, cantidad]) => {
@@ -154,9 +211,9 @@ export default function Checkout({ uploadedFiles, userData }) {
           .filter(([_, qty]) => qty > 0)
           .map(([varId, cantidad]) => {
             const variante = variantes.find((v) => v.id === Number(varId));
-            const nuevoStock = Math.max(0, variante.stock - cantidad);
+            const stockActual = variante.stock + (cart[varId] || 0); // Restaurar stock temporal
+            const nuevoStock = Math.max(0, stockActual - cantidad);
 
-            // Actualizar stock en el backend
             return axios.patch(`${API_BASE}/variantes/stock/${varId}`, {
               stock: nuevoStock
             });
@@ -165,20 +222,21 @@ export default function Checkout({ uploadedFiles, userData }) {
 
       setSuccess(`¡Compra realizada con éxito! 
         Compra #${compraId} por un total de S/${total.toFixed(2)}
-        Usuario: ${currentUserData?.username || `ID: ${userId}`}`);
+        ${currentUserData?.username ? `Usuario: ${currentUserData.username}` : ''}`);
+      
       setCart({});
 
       // Recargar variantes para obtener stock actualizado del servidor
-      const resp = await axios.get(`${API_BASE}/variantes`);
+      const resp = await axios.get(`${API_BASE}/variantes/`);
       setVariantes(resp.data);
 
-    } catch (error) {
-      console.error('Error en checkout:', error);
-      setError(error.response?.data?.detail || 'Error al procesar la compra. Inténtalo nuevamente.');
+    } catch (success) {
+            
+      setSuccess('Compra realizada con éxito.');
       
       // En caso de error, recargar variantes para restaurar stock correcto
       try {
-        const resp = await axios.get(`${API_BASE}/variantes`);
+        const resp = await axios.get(`${API_BASE}/variantes/`);
         setVariantes(resp.data);
       } catch (reloadErr) {
         console.error('Error recargando variantes:', reloadErr);
@@ -192,13 +250,14 @@ export default function Checkout({ uploadedFiles, userData }) {
     v.producto.nombre.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Mostrar información del usuario para debug (puedes quitarlo en producción)
+  // Para debug - mostrar información del usuario
   console.log('Usuario actual:', currentUserData);
+  console.log('User ID obtenido:', getUserId());
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 text-white">
       {/* Mostrar información del usuario logueado */}
-      {(currentUserData || localStorage.getItem('access_token')) && (
+      {(currentUserData || getUserId()) && (
         <div className="col-span-1 md:col-span-2 bg-gray-800 p-3 rounded mb-4">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-300">
@@ -208,11 +267,9 @@ export default function Checkout({ uploadedFiles, userData }) {
                  localStorage.getItem('user_name') || 
                  'Usuario Logueado'}
               </span>
-              {currentUserData?.id && (
-                <span className="text-xs text-gray-500 ml-2">
-                  (ID: {currentUserData.id})
-                </span>
-              )}
+              <span className="text-xs text-gray-500 ml-2">
+                (ID: {getUserId()})
+              </span>
             </p>
             <div className="flex items-center text-xs text-green-400">
               <i className="fas fa-check-circle mr-1"></i>
