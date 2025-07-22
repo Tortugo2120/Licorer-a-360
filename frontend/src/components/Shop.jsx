@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import Carrito from './Carrito';
 import axios from 'axios';
 
 const API_BASE = 'http://localhost:8000';
 
-export default function Checkout() {
+export default function Checkout({ uploadedFiles, userData }) {
   const [variantes, setVariantes] = useState([]);
   const [cart, setCart] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [search, setSearch] = useState('');
+
+  // También podemos obtener userData del contexto de Outlet si es necesario
+  const outletContext = useOutletContext();
+  const currentUserData = userData || outletContext?.userData;
 
   useEffect(() => {
     axios
@@ -69,19 +74,59 @@ export default function Checkout() {
     setError(null);
     setSuccess(null);
     const total = calcularTotal();
+    
+    // Validar que hay productos en el carrito
     if (total <= 0) {
       setError('El carrito está vacío.');
       return;
     }
 
+    // Validar que tenemos los datos del usuario y obtener ID
+    let userId = null;
+    
+    if (currentUserData && currentUserData.id) {
+      userId = currentUserData.id;
+    } else {
+      // Intentar obtener ID de otras fuentes
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        try {
+          // Decodificar token JWT para obtener el ID del usuario
+          const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+          userId = tokenPayload.sub || tokenPayload.user_id || tokenPayload.id;
+          console.log('ID del usuario obtenido del token:', userId);
+        } catch (e) {
+          console.error('Error al decodificar token:', e);
+        }
+      }
+      
+      // Si aún no tenemos ID, usar un valor temporal o predeterminado
+      if (!userId) {
+        // Como último recurso, puedes usar un ID predeterminado o mostrar un modal para re-autenticar
+        userId = 1; // O podrías usar Date.now() para un ID único temporal
+        console.warn('Usando ID de usuario predeterminado:', userId);
+      }
+    }
+
     setLoading(true);
     try {
       const fechaHoy = new Date().toISOString().slice(0, 10);
+      
+      console.log('Creando compra con datos:', { 
+        fecha: fechaHoy, 
+        total, 
+        id_usuario: userId 
+      });
+      
+      // Crear compra con el ID del usuario logueado
       const compraResp = await axios.post(`${API_BASE}/compras/`, {
         fecha: fechaHoy,
         total,
+        id_usuario: userId
       });
+      
       const compraId = compraResp.data.id;
+      console.log('Compra creada con ID:', compraId);
 
       const detallesDatos = Object.entries(cart)
         .filter(([_, qty]) => qty > 0)
@@ -94,6 +139,8 @@ export default function Checkout() {
             id_variante: Number(varId),
           };
         });
+
+      console.log('Creando detalles de compra:', detallesDatos);
 
       await Promise.all(
         detallesDatos.map((detalle) =>
@@ -116,16 +163,19 @@ export default function Checkout() {
           })
       );
 
-      setSuccess('Compra realizada con éxito.');
+      setSuccess(`¡Compra realizada con éxito! 
+        Compra #${compraId} por un total de S/${total.toFixed(2)}
+        Usuario: ${currentUserData?.username || `ID: ${userId}`}`);
       setCart({});
 
       // Recargar variantes para obtener stock actualizado del servidor
       const resp = await axios.get(`${API_BASE}/variantes`);
       setVariantes(resp.data);
 
-    } catch (success) {
-      console.error(success);
-      setSuccess(success.response?.data?.detail || 'Compra realizada con éxito.');
+    } catch (error) {
+      console.error('Error en checkout:', error);
+      setError(error.response?.data?.detail || 'Error al procesar la compra. Inténtalo nuevamente.');
+      
       // En caso de error, recargar variantes para restaurar stock correcto
       try {
         const resp = await axios.get(`${API_BASE}/variantes`);
@@ -142,8 +192,36 @@ export default function Checkout() {
     v.producto.nombre.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Mostrar información del usuario para debug (puedes quitarlo en producción)
+  console.log('Usuario actual:', currentUserData);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 text-white">
+      {/* Mostrar información del usuario logueado */}
+      {(currentUserData || localStorage.getItem('access_token')) && (
+        <div className="col-span-1 md:col-span-2 bg-gray-800 p-3 rounded mb-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-300">
+              Usuario: <span className="text-purple-400 font-medium">
+                {currentUserData?.username || 
+                 currentUserData?.name || 
+                 localStorage.getItem('user_name') || 
+                 'Usuario Logueado'}
+              </span>
+              {currentUserData?.id && (
+                <span className="text-xs text-gray-500 ml-2">
+                  (ID: {currentUserData.id})
+                </span>
+              )}
+            </p>
+            <div className="flex items-center text-xs text-green-400">
+              <i className="fas fa-check-circle mr-1"></i>
+              Sesión activa
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Catálogo */}
       <div>
         <h2 className="text-2xl font-bold mb-4">Catálogo de Productos</h2>
@@ -156,13 +234,15 @@ export default function Checkout() {
         />
 
         {error && (
-          <div className="text-red-500 font-semibold mb-4">{error}</div>
+          <div className="text-red-500 font-semibold mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded">
+            {error}
+          </div>
         )}
 
         {loading ? (
           <div className="text-center py-8">
             <i className="fas fa-spinner fa-spin text-2xl text-purple-400 mb-2"></i>
-            <p className="text-gray-400">Cargando productos...</p>
+            <p className="text-gray-400">Procesando compra...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

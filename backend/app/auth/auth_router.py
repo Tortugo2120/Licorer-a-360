@@ -57,3 +57,12 @@ def login(data: UsuarioLogin, session: Session = Depends(get_session)):
 @auth_router.get("/verify-token")
 def verify_token(user: Annotated[Usuario, Depends(get_current_user)]):
     return {"message": "Token válido", "user": user}
+
+# Obtener información del usuario actual
+@auth_router.get("/me", response_model=UsuarioRead)
+def get_current_user_info(user: Annotated[Usuario, Depends(get_current_user)]):
+    """
+    Obtiene la información del usuario autenticado actual.
+    Requiere un token de autenticación válido.
+    """
+    return user
