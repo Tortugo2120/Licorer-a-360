@@ -267,9 +267,9 @@ export default function Checkout({ uploadedFiles, userData }) {
                  localStorage.getItem('user_name') || 
                  'Usuario Logueado'}
               </span>
-              <span className="text-xs text-gray-500 ml-2">
+              {/*--<span className="text-xs text-gray-500 ml-2">
                 (ID: {getUserId()})
-              </span>
+              </span>--*/}
             </p>
             <div className="flex items-center text-xs text-green-400">
               <i className="fas fa-check-circle mr-1"></i>
@@ -318,14 +318,14 @@ export default function Checkout({ uploadedFiles, userData }) {
                         'https://via.placeholder.com/200x200?text=Sin+Imagen';
                     }}
                   />
-                  <h3 className="text-lg font-semibold">{v.producto.nombre}</h3>
+                  <h3 className="text-lg font-semibold">{v.producto.nombre} {v.cantidad + " ml"}</h3>
                   <p className="text-sm text-gray-400 capitalize">
-                    {v.producto.categoria?.nombre || 'Sin categoría'}
+                    {v.producto.categoria?.nombre || 'Sin categoría'} 
                   </p>
                   <p className="text-sm text-gray-500">{v.descripcion}</p>
-                  <p className="text-sm text-gray-500">
+                  {/*<p className="text-sm text-gray-500">
                     Presentación: {v.cantidad + " ml"}
-                  </p>
+                  </p>*/}
                   <p className="font-bold text-purple-400">
                     S/{v.precio.toFixed(2)}
                   </p>

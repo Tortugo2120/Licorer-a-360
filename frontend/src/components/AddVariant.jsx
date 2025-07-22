@@ -80,6 +80,7 @@ const AddVariant = ({ isOpen, onClose, onAddVariant }) => {
         resetForm();
         console.log("Variante creada exitosamente");
         onClose();
+         location.reload();
       }
     } catch (err) {
       // Manejar errores
