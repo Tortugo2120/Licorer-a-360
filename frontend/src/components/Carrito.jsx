@@ -11,7 +11,7 @@ const Carrito = ({
   success,
 }) => {
   return (
-    <div className="sticky top-16 z-50 bg-gray-900 p-4 rounded-lg shadow-lg">
+    <div className="sticky top-16 z-40 bg-gray-900 p-4 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-4">🛒 Carrito</h2>
       {Object.keys(cart).filter(id => cart[id] > 0).length === 0 ? (
         <p className="text-gray-400">El carrito está vacío.</p>
